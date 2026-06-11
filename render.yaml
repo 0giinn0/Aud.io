@@ -4,9 +4,11 @@ services:
     runtime: docker
     repo: https://github.com/0giinn0/Aud.io
     branch: main
-    # Paths are relative to the repo root; the Node server lives in aud.io/server.
-    dockerfilePath: ./aud.io/server/Dockerfile
-    dockerContext: ./aud.io/server
+    # Root-level Dockerfile builds from the repo root and copies in
+    # aud.io/server — this also matches Render's dashboard defaults
+    # (Dockerfile path "Dockerfile", context ".") for manually created services.
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
