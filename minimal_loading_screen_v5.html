@@ -1,0 +1,209 @@
+
+<style>
+  @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+  @keyframes ripple {
+    0% { transform: translate(-50%,-50%) scale(0); opacity: 0.6; }
+    100% { transform: translate(-50%,-50%) scale(3.5); opacity: 0; }
+  }
+
+  .loader-wrap {
+    min-height: 480px;
+    background: #0a0a0a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    border-radius: var(--border-radius-lg);
+  }
+
+  .status-line {
+    font-size: 11px;
+    color: #555;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    height: 16px;
+  }
+  .cursor { animation: blink 1s step-end infinite; }
+
+  .bar-track {
+    width: 240px;
+    height: 3px;
+    background: #1e1e1e;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    border: 0.5px solid #2a2a2a;
+  }
+  .bar-fill {
+    height: 100%;
+    background: #888;
+    border-radius: 2px;
+    width: 0%;
+  }
+  .bar-pct {
+    font-size: 11px;
+    color: #444;
+    letter-spacing: 0.1em;
+    margin-bottom: 32px;
+  }
+
+  .enter-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease;
+  }
+  .enter-wrap.visible { opacity: 1; pointer-events: all; }
+  .enter-label {
+    font-size: 11px;
+    color: #555;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .tap-circle {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .tap-ring {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid #555;
+    transition: border-color 0.2s;
+  }
+  .tap-dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: #666;
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    transition: background 0.2s;
+  }
+  .ripple-el {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid #666;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    pointer-events: none;
+    opacity: 0;
+  }
+  .tap-circle:hover .tap-ring { border-color: #888; }
+  .tap-circle:hover .tap-dot { background: #888; }
+  .tap-circle.tapping .ripple-el { animation: ripple 0.6s ease-out forwards; }
+</style>
+
+<h2 class="sr-only">Minimal loading screen</h2>
+
+<div class="loader-wrap">
+  <div class="status-line" id="status">initializing<span class="cursor">_</span></div>
+  <div class="bar-track"><div class="bar-fill" id="bar"></div></div>
+  <div class="bar-pct" id="pct">0%</div>
+  <div class="enter-wrap" id="enter">
+    <div class="enter-label">click to enter</div>
+    <div class="tap-circle" id="tap" onclick="handleTap()">
+      <div class="tap-ring"></div>
+      <div class="tap-dot"></div>
+      <div class="ripple-el" id="ripple"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const statuses = [
+    { label: "initializing", at: 0 },
+    { label: "checking system requirements", at: 5 },
+    { label: "loading configuration", at: 10 },
+    { label: "fetching assets", at: 15 },
+    { label: "installing dependencies", at: 20 },
+    { label: "looking for updates", at: 25 },
+    { label: "setting up environment", at: 30 },
+    { label: "running diagnostics", at: 35 },
+    { label: "connecting to server", at: 40 },
+    { label: "authenticating", at: 45 },
+    { label: "compiling resources", at: 50 },
+    { label: "syncing data", at: 55 },
+    { label: "optimizing cache", at: 60 },
+    { label: "loading modules", at: 65 },
+    { label: "verifying integrity", at: 70 },
+    { label: "unpacking components", at: 75 },
+    { label: "registering services", at: 80 },
+    { label: "preparing interface", at: 88 },
+    { label: "almost ready", at: 95 }
+  ];
+
+  const DURATION = 30000;
+  const startTime = Date.now();
+  const statusEl = document.getElementById('status');
+  const barEl = document.getElementById('bar');
+  const pctEl = document.getElementById('pct');
+  const enterEl = document.getElementById('enter');
+
+  let lastStatusIdx = -1;
+
+  function setStatus(text) {
+    statusEl.innerHTML = text + '<span class="cursor">_</span>';
+  }
+
+  function tick() {
+    const elapsed = Date.now() - startTime;
+    const t = Math.min(elapsed / DURATION, 1);
+
+    let pct;
+    if (t < 0.4) {
+      pct = t * 0.55 / 0.4;
+    } else if (t < 0.75) {
+      pct = 0.55 + (t - 0.4) * 0.2 / 0.35;
+    } else {
+      pct = 0.75 + (t - 0.75) * 0.25 / 0.25;
+    }
+    pct = Math.min(pct, 1);
+    const display = Math.round(pct * 100);
+
+    barEl.style.width = display + '%';
+    pctEl.textContent = display + '%';
+
+    for (let i = statuses.length - 1; i >= 0; i--) {
+      if (display >= statuses[i].at && i !== lastStatusIdx) {
+        lastStatusIdx = i;
+        setStatus(statuses[i].label);
+        break;
+      }
+    }
+
+    if (t < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      barEl.style.width = '100%';
+      pctEl.textContent = '100%';
+      setStatus("done");
+      setTimeout(() => enterEl.classList.add('visible'), 800);
+    }
+  }
+
+  requestAnimationFrame(tick);
+
+  function handleTap() {
+    const tap = document.getElementById('tap');
+    const ripple = document.getElementById('ripple');
+    tap.classList.remove('tapping');
+    void ripple.offsetWidth;
+    tap.classList.add('tapping');
+    setTimeout(() => tap.classList.remove('tapping'), 700);
+  }
+</script>

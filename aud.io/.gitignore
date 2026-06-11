@@ -1,0 +1,51 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+*.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Server
+server/node_modules/
+server/npm-debug.log*
+server/.env
+server/server.log
+
+# Android
+android/app/build/
+android/.gradle/
+android/local.properties
+android/gradle.properties
+android/gradlew
+android/gradlew.bat
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+
+# Supabase
+supabase/.temp/
+
+# Logs
+*.log
+
+# Coverage
+coverage/
+*.lcov
+
+# Dart
+pubspec.lock
