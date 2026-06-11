@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: aud-io-server
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/aud.io
+    branch: main
+    dockerfilePath: server/Dockerfile
+    dockerContext: server
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: PODCAST_INDEX_API_KEY
+        sync: false
+      - key: PODCAST_INDEX_API_SECRET
+        sync: false
+      - key: PODCAST_INDEX_USER_AGENT
+        value: aud.io/1.0
+      - key: SOUNDCLOUD_CLIENT_ID
+        sync: false
