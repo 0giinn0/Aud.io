@@ -2,10 +2,12 @@ services:
   - type: web
     name: aud-io-server
     runtime: docker
-    repo: https://github.com/YOUR_USERNAME/aud.io
+    repo: https://github.com/0giinn0/Aud.io
     branch: main
-    dockerfilePath: server/Dockerfile
-    dockerContext: server
+    # Paths are relative to the repo root; the Node server lives in aud.io/server.
+    dockerfilePath: ./aud.io/server/Dockerfile
+    dockerContext: ./aud.io/server
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
