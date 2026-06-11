@@ -4,8 +4,8 @@ services:
     runtime: docker
     repo: https://github.com/0giinn0/Aud.io
     branch: main
-    dockerfilePath: server/Dockerfile
-    dockerContext: server
+    dockerfilePath: Dockerfile
+    dockerContext: .
     envVars:
       - key: NODE_ENV
         value: production
