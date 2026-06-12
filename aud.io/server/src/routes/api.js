@@ -32,7 +32,9 @@ router.get('/debug/ytdlp', async (req, res) => {
   let cookiePath = null;
   let cookieText = null;
   out.cookies = {};
+  try { out.cookies.secretsDir = fs.readdirSync('/etc/secrets'); } catch (e) { out.cookies.secretsDir = `none (${e.code})`; }
   const fileCandidates = [process.env.YTDLP_COOKIES_FILE, '/etc/secrets/cookies.txt'].filter(Boolean);
+  try { for (const f of fs.readdirSync('/etc/secrets')) fileCandidates.push(`/etc/secrets/${f}`); } catch {}
   for (const p of fileCandidates) {
     try {
       if (fs.existsSync(p)) {
