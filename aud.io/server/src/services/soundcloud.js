@@ -83,21 +83,43 @@ export async function searchSoundCloud(query, maxResults = 20) {
   });
 }
 
-export async function getSoundCloudStreamUrl(trackId) {
+export async function getSoundCloudStreamUrl(trackId, _retried = false) {
   try {
     const clientId = await getClientId();
     const scId = trackId.replace('sc_', '');
-    const { data } = await axios.get(`https://api.soundcloud.com/tracks/${scId}/streams`, {
+
+    // The legacy api.soundcloud.com/streams endpoint is dead; the v2 API
+    // exposes playback via media.transcodings — fetch the track, pick a
+    // progressive (plain MP3) transcoding, then resolve its signed URL.
+    const { data: track } = await axios.get(`https://api-v2.soundcloud.com/tracks/${scId}`, {
       params: { client_id: clientId },
       timeout: TIMEOUT,
       headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
     });
-    return data?.http_mp3_128_url || data?.hls_mp3_128_url || null;
+
+    const transcodings = track?.media?.transcodings || [];
+    // Prefer a progressive MP3 (range-friendly for our proxy); fall back to
+    // HLS only if that's all SoundCloud offers.
+    const progressive = transcodings.find(
+      (t) => t.format?.protocol === 'progressive' && /mp3/i.test(t.format?.mime_type || '')
+    );
+    const chosen = progressive || transcodings.find((t) => /mp3/i.test(t.format?.mime_type || '')) || transcodings[0];
+    if (!chosen?.url) {
+      logger.warn({ trackId }, 'SoundCloud track has no transcodings');
+      return null;
+    }
+
+    const { data: resolved } = await axios.get(chosen.url, {
+      params: { client_id: clientId },
+      timeout: TIMEOUT,
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
+    });
+    return resolved?.url || null;
   } catch (err) {
-    logger.error({ err, trackId }, 'SoundCloud stream URL failed');
-    if (err.response?.status === 401) {
-      cachedClientId = null; // force refresh
-      return getSoundCloudStreamUrl(trackId);
+    logger.error({ err: err.message, status: err.response?.status, trackId }, 'SoundCloud stream URL failed');
+    if (err.response?.status === 401 && !_retried) {
+      cachedClientId = null; // force a client_id refresh, then retry once
+      return getSoundCloudStreamUrl(trackId, true);
     }
     return null;
   }
