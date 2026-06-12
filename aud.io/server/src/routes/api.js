@@ -12,6 +12,7 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 
 const execFileAsync = promisify(execFile);
 const router = Router();
@@ -39,7 +40,10 @@ router.get('/debug/ytdlp', async (req, res) => {
     try {
       if (fs.existsSync(p)) {
         cookieText = fs.readFileSync(p, 'utf8');
-        cookiePath = p;
+        // Copy to a writable temp file — yt-dlp rewrites the cookie file and
+        // Render Secret Files are read-only (mirrors the real extractor path).
+        cookiePath = path.join(os.tmpdir(), 'debug-cookies.txt');
+        fs.writeFileSync(cookiePath, cookieText);
         out.cookies.source = `file:${p}`;
         break;
       }
