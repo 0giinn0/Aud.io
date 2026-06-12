@@ -16,7 +16,7 @@ WORKDIR /app
 COPY pubspec.yaml pubspec.lock ./
 RUN flutter pub get
 COPY . .
-RUN flutter build web --dart-define=BASE_URL=https://aud-io-1.onrender.com
+RUN flutter build web --dart-define=BASE_URL=https://aud-io-server.onrender.com
 
 FROM nginx:alpine
 COPY --from=build /app/build/web /usr/share/nginx/html
