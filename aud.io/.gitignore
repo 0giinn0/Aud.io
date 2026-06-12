@@ -27,7 +27,6 @@ server/server.log
 android/app/build/
 android/.gradle/
 android/local.properties
-android/gradle.properties
 android/gradlew
 android/gradlew.bat
 
