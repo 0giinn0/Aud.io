@@ -2,6 +2,7 @@
 import 'package:provider/provider.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/models/podcast.dart';
+import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/api_service.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/settings_service.dart';
@@ -107,13 +108,19 @@ class _PodcastPageState extends State<PodcastPage> {
   void _playEpisode(PodcastEpisode episode) {
     final audioHandler = context.read<AppAudioHandler>();
     if (episode.audioUrl != null && episode.audioUrl!.isNotEmpty) {
-      audioHandler.playDirectUrl(
-        episode.audioUrl!,
+      // Represent the episode as a queue Track so the mini-player and
+      // now-playing screen show its title/artist like any other track.
+      final track = Track(
+        id: 'podcast_${episode.audioUrl.hashCode}',
         title: episode.title,
         artist: episode.artistDisplay,
-        artUri: episode.thumbnailUrl,
-        durationMs: episode.duration > 0 ? episode.duration * 1000 : null,
+        album: 'Podcast',
+        thumbnailUrl: episode.thumbnailUrl,
+        audioUrl: episode.audioUrl,
+        duration: episode.duration > 0 ? episode.duration : 0,
+        source: TrackSource.podcast,
       );
+      audioHandler.setQueue([track]);
     }
   }
 

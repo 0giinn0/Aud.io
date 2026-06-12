@@ -41,11 +41,17 @@ class Playlist {
 class LocalPlaylistService extends ChangeNotifier {
   static const _key = 'aud_io_playlists';
   static const _favKey = 'aud_io_favorites';
+  static const _favTracksKey = 'aud_io_favorite_tracks';
   List<Playlist> _playlists = [];
   Set<String> _favoriteIds = {};
+  // Full favourite tracks (newest first) so the Liked Songs view can render
+  // and play them — works for music tracks and podcast episodes alike.
+  final List<Track> _favorites = [];
   bool _loaded = false;
 
   List<Playlist> get playlists => List.unmodifiable(_playlists);
+  List<Track> get favorites => List.unmodifiable(_favorites);
+  int get favoriteCount => _favorites.length;
   bool get loaded => _loaded;
 
   bool isFavorite(String trackId) => _favoriteIds.contains(trackId);
@@ -53,8 +59,10 @@ class LocalPlaylistService extends ChangeNotifier {
   void toggleFavorite(Track track) {
     if (_favoriteIds.contains(track.id)) {
       _favoriteIds.remove(track.id);
+      _favorites.removeWhere((t) => t.id == track.id);
     } else {
       _favoriteIds.add(track.id);
+      _favorites.insert(0, track);
     }
     _saveFavorites();
     notifyListeners();
@@ -74,9 +82,19 @@ class LocalPlaylistService extends ChangeNotifier {
       }
     }
 
-    final favRaw = prefs.getStringList(_favKey);
-    if (favRaw != null) {
-      _favoriteIds = favRaw.toSet();
+    final favTracksRaw = prefs.getString(_favTracksKey);
+    if (favTracksRaw != null) {
+      try {
+        final list = jsonDecode(favTracksRaw) as List;
+        _favorites
+          ..clear()
+          ..addAll(list.map((e) => Track.fromJson(e)));
+        _favoriteIds = _favorites.map((t) => t.id).toSet();
+      } catch (_) {}
+    } else {
+      // Legacy: only IDs were stored — keep them so isFavorite still works.
+      final favRaw = prefs.getStringList(_favKey);
+      if (favRaw != null) _favoriteIds = favRaw.toSet();
     }
 
     _loaded = true;
@@ -91,6 +109,7 @@ class LocalPlaylistService extends ChangeNotifier {
   Future<void> _saveFavorites() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_favKey, _favoriteIds.toList());
+    await prefs.setString(_favTracksKey, jsonEncode(_favorites.map((t) => t.toJson()).toList()));
   }
 
   Playlist createPlaylist(String name, {String description = ''}) {

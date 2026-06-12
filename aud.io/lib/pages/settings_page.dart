@@ -1,9 +1,13 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/services/settings_service.dart';
 import 'package:aud_io/services/download_service.dart';
+import 'package:aud_io/services/local_playlist_service.dart';
+import 'package:aud_io/services/api_service.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -50,11 +54,95 @@ class SettingsPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Row 4: Server status
-          _buildServerCard(),
+          // Row 4: Library data management
+          _buildLibraryCard(context),
+          const SizedBox(height: 12),
+
+          // Row 5: Live server status
+          const _ServerStatusCard(),
         ],
       ),
     );
+  }
+
+  Widget _buildLibraryCard(BuildContext context) {
+    return Consumer<LocalPlaylistService>(
+      builder: (_, lib, __) {
+        final trackTotal = lib.playlists.fold<int>(0, (s, p) => s + p.trackCount);
+        return _BentoCard(
+          height: 92,
+          gradient: [AudIoTheme.surface, AudIoTheme.surfaceVariant],
+          child: Row(
+            children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: AudIoTheme.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.library_music_rounded, size: 20, color: AudIoTheme.primary),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Library', style: TextStyle(
+                      fontSize: 13, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
+                    Text('${lib.playlists.length} playlists · $trackTotal tracks · ${lib.favoriteCount} liked',
+                      style: TextStyle(fontSize: 10, color: AudIoTheme.subtle),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () => _clearLibrary(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AudIoTheme.error.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('Reset', style: TextStyle(fontSize: 10, color: AudIoTheme.error)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _clearLibrary(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AudIoTheme.surface,
+        title: Text('Reset library?', style: TextStyle(fontSize: 14, color: AudIoTheme.onSurface)),
+        content: Text('This removes all playlists and liked songs. Downloads are kept.',
+          style: TextStyle(fontSize: 12, color: AudIoTheme.muted)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: AudIoTheme.subtle))),
+          TextButton(onPressed: () => Navigator.pop(context, true),
+            child: Text('Reset', style: TextStyle(color: AudIoTheme.error))),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      final lib = context.read<LocalPlaylistService>();
+      for (final p in List.of(lib.playlists)) {
+        lib.deletePlaylist(p.id);
+      }
+      for (final t in List.of(lib.favorites)) {
+        lib.toggleFavorite(t);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Library reset')));
+      }
+    }
   }
 
   Widget _buildThemeCard(BuildContext context) {
@@ -236,55 +324,6 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildServerCard() {
-    return _BentoCard(
-      height: 80,
-      gradient: [AudIoTheme.primary.withValues(alpha: 0.08), AudIoTheme.surface],
-      child: Row(
-        children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: AudIoTheme.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.dns_rounded, size: 20, color: AudIoTheme.primary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Server', style: TextStyle(
-                  fontSize: 13, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
-                Text('localhost:3001', style: TextStyle(
-                  fontSize: 10, color: AudIoTheme.subtle)),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: AudIoTheme.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(width: 6, height: 6,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: AudIoTheme.primary)),
-                const SizedBox(width: 6),
-                Text('Active', style: TextStyle(
-                  fontSize: 10, color: AudIoTheme.primary)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _pickDownloadDirectory(BuildContext context) async {
     final settings = context.read<SettingsService>();
     final result = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Select Download Directory');
@@ -320,6 +359,114 @@ class SettingsPage extends StatelessWidget {
           SnackBar(content: Text('Downloads cleared', style: TextStyle())));
       }
     }
+  }
+}
+
+class _ServerStatusCard extends StatefulWidget {
+  const _ServerStatusCard();
+
+  @override
+  State<_ServerStatusCard> createState() => _ServerStatusCardState();
+}
+
+class _ServerStatusCardState extends State<_ServerStatusCard> {
+  bool _loading = true;
+  bool _online = false;
+  String _detail = 'checking…';
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    setState(() { _loading = true; _detail = 'checking…'; });
+    try {
+      final r = await http
+          .get(Uri.parse('${ApiService.baseUrl}/health'))
+          .timeout(const Duration(seconds: 60));
+      if (r.statusCode == 200) {
+        final body = jsonDecode(r.body) as Map<String, dynamic>;
+        final up = (body['uptime'] as num?)?.toInt() ?? 0;
+        setState(() { _online = true; _detail = 'up ${_fmtUptime(up)}'; });
+      } else {
+        setState(() { _online = false; _detail = 'HTTP ${r.statusCode}'; });
+      }
+    } catch (_) {
+      setState(() { _online = false; _detail = 'unreachable'; });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _fmtUptime(int s) {
+    if (s >= 3600) return '${(s / 3600).floor()}h';
+    if (s >= 60) return '${(s / 60).floor()}m';
+    return '${s}s';
+  }
+
+  String get _host {
+    final u = Uri.tryParse(ApiService.baseUrl);
+    return u?.host ?? ApiService.baseUrl;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _online ? AudIoTheme.primary : AudIoTheme.error;
+    return GestureDetector(
+      onTap: _loading ? null : _check,
+      child: _BentoCard(
+        height: 80,
+        gradient: [color.withValues(alpha: 0.08), AudIoTheme.surface],
+        child: Row(
+          children: [
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.dns_rounded, size: 20, color: color),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Server', style: TextStyle(
+                    fontSize: 13, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
+                  Text(_host, style: TextStyle(fontSize: 10, color: AudIoTheme.subtle),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_loading)
+                    SizedBox(width: 10, height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: color))
+                  else
+                    Container(width: 6, height: 6,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+                  const SizedBox(width: 6),
+                  Text(_loading ? 'check' : (_online ? _detail : 'offline'),
+                    style: TextStyle(fontSize: 10, color: color)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

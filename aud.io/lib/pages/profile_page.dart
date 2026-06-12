@@ -33,7 +33,7 @@ class ProfilePage extends StatelessWidget {
                 children: [
                   Expanded(child: _buildCreateCard(context, service)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildFavoritesCard(service)),
+                  Expanded(child: _buildFavoritesCard(context, service)),
                   const SizedBox(width: 12),
                   Expanded(child: _buildUploadCard(context)),
                 ],
@@ -47,7 +47,7 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(child: _buildStatMini('Tracks', '${service.playlists.fold<int>(0, (s, p) => s + p.trackCount)}', Icons.music_note_rounded)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildStatMini('Hours', '0', Icons.schedule_rounded)),
+                  Expanded(child: _buildStatMini('Liked', '${service.favoriteCount}', Icons.favorite_rounded)),
                 ],
               ),
               const SizedBox(height: 20),
@@ -183,31 +183,43 @@ class ProfilePage extends StatelessWidget {
     }
   }
 
-  Widget _buildFavoritesCard(LocalPlaylistService service) {
-    return Container(
-      height: 120,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AudIoTheme.error.withValues(alpha: 0.15),
-            AudIoTheme.surface,
+  Widget _buildFavoritesCard(BuildContext context, LocalPlaylistService service) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(
+        builder: (_) => const _LikedSongsPage(),
+      )),
+      child: Container(
+        height: 120,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AudIoTheme.error.withValues(alpha: 0.15),
+              AudIoTheme.surface,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.favorite_rounded, size: 24, color: AudIoTheme.error),
+                const Spacer(),
+                Text('${service.favoriteCount}', style: TextStyle(
+                  fontSize: 13, color: AudIoTheme.error, fontWeight: FontWeight.w700)),
+              ],
+            ),
+            const Spacer(),
+            Text('Liked', style: TextStyle(
+              fontSize: 16, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
+            Text('Songs', style: TextStyle(
+              fontSize: 16, color: AudIoTheme.error, fontWeight: FontWeight.w700)),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.favorite_rounded, size: 24, color: AudIoTheme.error),
-          const Spacer(),
-          Text('Liked', style: TextStyle(
-            fontSize: 16, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
-          Text('Songs', style: TextStyle(
-            fontSize: 16, color: AudIoTheme.error, fontWeight: FontWeight.w700)),
-        ],
       ),
     );
   }
@@ -455,6 +467,126 @@ class _PlaylistDetailPage extends StatelessWidget {
                       return _PlaylistTrackTile(
                         track: track, index: index, playlistId: playlistId,
                         onPlay: () => context.read<AppAudioHandler>().setQueue(playlist.tracks, startIndex: index),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LikedSongsPage extends StatelessWidget {
+  const _LikedSongsPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<LocalPlaylistService>(
+      builder: (context, service, _) {
+        final favs = service.favorites;
+        return Scaffold(
+          backgroundColor: AudIoTheme.bg,
+          body: Column(
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.arrow_back_rounded, size: 24, color: AudIoTheme.onSurface),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      Icon(Icons.favorite_rounded, size: 18, color: AudIoTheme.error),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text('Liked Songs', style: TextStyle(
+                          fontSize: 16, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
+                      ),
+                      if (favs.isNotEmpty)
+                        IconButton(
+                          icon: Icon(Icons.play_circle_fill_rounded, size: 28, color: AudIoTheme.primary),
+                          onPressed: () => context.read<AppAudioHandler>().setQueue(favs),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              if (favs.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.favorite_border_rounded, size: 48, color: AudIoTheme.subtle),
+                        const SizedBox(height: 16),
+                        Text('No liked songs yet', style: TextStyle(fontSize: 12, color: AudIoTheme.muted)),
+                        const SizedBox(height: 4),
+                        Text('Tap the heart on any track or podcast', style: TextStyle(
+                          fontSize: 10, color: AudIoTheme.subtle)),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: favs.length,
+                    itemBuilder: (context, index) {
+                      final track = favs[index];
+                      return InkWell(
+                        onTap: () => context.read<AppAudioHandler>().setQueue(favs, startIndex: index),
+                        onLongPress: () => showTrackContextMenu(context, track),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AudIoTheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              if (track.thumbnailUrl != null)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(track.thumbnailUrl!, width: 44, height: 44, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
+                                      decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+                                      child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle))),
+                                )
+                              else
+                                Container(width: 44, height: 44,
+                                  decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+                                  child: Icon(track.source == TrackSource.podcast ? Icons.podcasts_rounded : Icons.music_note_rounded,
+                                    size: 18, color: AudIoTheme.subtle)),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(track.title, style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface,
+                                      fontWeight: FontWeight.w500),
+                                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    const SizedBox(height: 2),
+                                    Text('${track.artistDisplay} · ${track.sourceShort.toLowerCase()}',
+                                      style: TextStyle(fontSize: 10, color: AudIoTheme.subtle),
+                                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  ],
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => service.toggleFavorite(track),
+                                child: Icon(Icons.favorite_rounded, size: 18, color: AudIoTheme.error),
+                              ),
+                            ],
+                          ),
+                        ),
                       );
                     },
                   ),

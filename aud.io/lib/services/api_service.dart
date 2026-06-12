@@ -38,6 +38,12 @@ class ApiService {
     return '$_baseUrl/api/stream/${Uri.encodeComponent(id)}/audio?source=${_sourceName(source)}';
   }
 
+  /// Proxy an arbitrary http(s) audio URL (e.g. podcast episodes) through the
+  /// server so the browser gets CORS headers and Range support.
+  static String proxyDirectUrl(String url) {
+    return '$_baseUrl/api/proxy?url=${Uri.encodeQueryComponent(url)}';
+  }
+
   static Future<List<Track>> search(String query, {int maxResults = 20}) async {
     try {
       final uri = Uri.parse('$_baseUrl/api/search').replace(queryParameters: {
