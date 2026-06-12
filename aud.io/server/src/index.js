@@ -12,15 +12,32 @@ const app = express();
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
+// Extra origins (e.g. a custom domain) can be added via ALLOWED_ORIGINS,
+// a comma-separated list. localhost, *.onrender.com and *.netlify.app
+// (where the web app is hosted) are always allowed.
+const extraOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function isAllowedOrigin(origin) {
+  return (
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+    /^https?:\/\/([a-z0-9-]+\.)*onrender\.com$/.test(origin) ||
+    /^https?:\/\/([a-z0-9-]+\.)*netlify\.app$/.test(origin) ||
+    extraOrigins.includes(origin)
+  );
+}
+
 app.use(cors({
   origin: (origin, callback) => {
+    // No Origin header => non-browser client (mobile app, curl); allow.
     if (!origin) return callback(null, true);
-    const allowed =
-      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
-      /^https?:\/\/.*\.onrender\.com$/.test(origin);
-    callback(allowed ? null : new Error('CORS blocked'), allowed);
+    // Returning false (not an Error) omits CORS headers without throwing a
+    // 500, so disallowed browsers get a clean CORS rejection.
+    callback(null, isAllowedOrigin(origin));
   },
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],
 }));
 
 app.use(express.json());
