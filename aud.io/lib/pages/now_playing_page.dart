@@ -5,6 +5,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:provider/provider.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
+import 'package:aud_io/core/theme/witty_strings.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/download_service.dart';
@@ -253,6 +254,17 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: AudIoTheme.ink.withValues(alpha: 0.55),
+                        ),
+                      ),
+                      const SizedBox(height: AudIoTheme.s1),
+                      Text(
+                        WittyStrings.randomFrom(WittyStrings.nowPlayingJokes),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontStyle: FontStyle.italic,
+                          color: AudIoTheme.ink.withValues(alpha: 0.4),
                         ),
                       ),
                     ],

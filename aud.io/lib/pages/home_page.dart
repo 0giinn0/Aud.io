@@ -34,6 +34,8 @@ class _HomePageState extends State<HomePage> {
     {'name': 'Rock', 'icon': Icons.music_note_rounded, 'color': Color(0xFFFFD166)},
     {'name': 'Jazz', 'icon': Icons.music_note_rounded, 'color': Color(0xFF118AB2)},
     {'name': 'Pop', 'icon': Icons.star_rounded, 'color': Color(0xFFF72585)},
+    {'name': 'Classical', 'icon': Icons.library_music_rounded, 'color': Color(0xFF8B5CF6)},
+    {'name': 'Ambient', 'icon': Icons.cloud_rounded, 'color': Color(0xFF06B6D4)},
   ];
 
   Future<void> _search(String query) async {
@@ -460,44 +462,83 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildGenreGrid() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 1.8,
-      ),
-      itemCount: _genres.length,
-      itemBuilder: (context, index) {
-        final genre = _genres[index];
-        return GestureDetector(
-          onTap: () {
-            _searchController.text = genre['name'] as String;
-            _search(genre['name'] as String);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: (genre['color'] as Color).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(genre['icon'] as IconData, size: 18, color: genre['color'] as Color),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(genre['name'] as String,
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11, color: genre['color'] as Color, fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ),
+    // Golden ratio bento grid: pairs of big (61.8%) + small (38.2%) tiles
+    return Column(
+      children: List.generate((_genres.length / 2).ceil(), (rowIndex) {
+        final firstIdx = rowIndex * 2;
+        final secondIdx = firstIdx + 1;
+        final firstGenre = _genres[firstIdx];
+        final secondGenre = secondIdx < _genres.length ? _genres[secondIdx] : null;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              // Big tile (61.8% of space)
+              Expanded(
+                flex: 618,
+                child: _buildGenreTile(firstGenre, isBig: true),
+              ),
+              const SizedBox(width: 12),
+              // Small tile (38.2% of space) - or spacer if no second genre
+              Expanded(
+                flex: 382,
+                child: secondGenre != null
+                    ? _buildGenreTile(secondGenre, isBig: false)
+                    : const SizedBox.shrink(),
+              ),
+            ],
           ),
         );
+      }),
+    );
+  }
+
+  Widget _buildGenreTile(Map<String, dynamic> genre, {required bool isBig}) {
+    return GestureDetector(
+      onTap: () {
+        _searchController.text = genre['name'] as String;
+        _search(genre['name'] as String);
       },
+      child: Container(
+        height: isBig ? 100 : 100,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              (genre['color'] as Color).withValues(alpha: 0.15),
+              (genre['color'] as Color).withValues(alpha: 0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: (genre['color'] as Color).withValues(alpha: 0.2),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(genre['icon'] as IconData, size: isBig ? 24 : 20, color: genre['color'] as Color),
+            Flexible(
+              child: Text(
+                genre['name'] as String,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: isBig ? 14 : 12,
+                  color: genre['color'] as Color,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

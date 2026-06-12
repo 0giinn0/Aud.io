@@ -128,6 +128,7 @@ class _PodcastPageState extends State<PodcastPage> {
   Widget build(BuildContext context) {
     context.watch<SettingsService>();
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AudIoTheme.bg,
       body: Column(
         children: [

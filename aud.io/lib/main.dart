@@ -16,8 +16,10 @@ import 'package:aud_io/pages/profile_page.dart';
 import 'package:aud_io/pages/now_playing_page.dart';
 import 'package:aud_io/pages/settings_page.dart';
 import 'package:aud_io/pages/podcast_page.dart';
+import 'package:aud_io/pages/artist_page.dart';
 import 'package:aud_io/widgets/mini_player.dart';
 import 'package:aud_io/widgets/golden_spiral_nav.dart';
+import 'package:aud_io/widgets/loading_bar.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:aud_io/services/auth_service.dart';
@@ -211,15 +213,36 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   late final AppAudioHandler _audioHandler;
+  late final DownloadService _downloadService;
   int _currentTab = 0;
+  DateTime? _lastBackPress;
 
   @override
   void initState() {
     super.initState();
     _audioHandler = context.read<AppAudioHandler>();
+    _downloadService = context.read<DownloadService>();
+    // Set up download notification callback
+    _downloadService.setNotificationCallback(_handleDownloadNotification);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<MusicLibrary>().init();
     });
+  }
+
+  void _handleDownloadNotification(DownloadNotification notification) {
+    if (!mounted) return;
+    if (notification.type == DownloadNotificationType.completed || 
+        notification.type == DownloadNotificationType.failed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(notification.title),
+          duration: const Duration(seconds: 3),
+          backgroundColor: notification.type == DownloadNotificationType.completed
+              ? Colors.green
+              : Colors.red,
+        ),
+      );
+    }
   }
 
   void _openNowPlaying() {
@@ -234,6 +257,24 @@ class _AppShellState extends State<AppShell> {
     setState(() => _currentTab = index);
   }
 
+  // Android back button: from any tab → return to DISCOVER (home);
+  // from home → require a second press within 2s to exit the app.
+  void _handleBack() {
+    if (_currentTab != 0) {
+      setState(() => _currentTab = 0);
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastBackPress == null || now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+      _lastBackPress = now;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Press back again to exit'), duration: Duration(seconds: 2)),
+      );
+      return;
+    }
+    SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -241,60 +282,97 @@ class _AppShellState extends State<AppShell> {
 
     return ChangeNotifierProvider.value(
       value: _audioHandler,
-      child: Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: GoldenSpiralNav(
-                  activeIndex: _currentTab,
-                  onChanged: _onTabTap,
-                  sections: [
-                    GoldenSection(
-                      label: 'DISCOVER',
-                      icon: Icons.home_rounded,
-                      panelColor: AudIoTheme.red,
-                      panelForeground: AudIoTheme.ink,
-                      page: HomePage(
-                        onNavigateToLibrary: () => _onTabTap(2),
-                        onNavigateToPodcasts: () => _onTabTap(1),
-                      ),
-                    ),
-                    const GoldenSection(
-                      label: 'PODCASTS',
-                      icon: Icons.podcasts_rounded,
-                      panelColor: AudIoTheme.cream,
-                      panelForeground: AudIoTheme.ink,
-                      page: PodcastPage(),
-                    ),
-                    GoldenSection(
-                      label: 'LIBRARY',
-                      icon: Icons.person_rounded,
-                      panelColor: AudIoTheme.red,
-                      panelForeground: AudIoTheme.cream,
-                      page: ProfilePage(supabaseAvailable: supabaseAvailable),
-                    ),
-                    const GoldenSection(
-                      label: 'SETTINGS',
-                      icon: Icons.settings_rounded,
-                      panelColor: AudIoTheme.cream,
-                      panelForeground: AudIoTheme.red,
-                      page: SettingsPage(),
-                    ),
-                  ],
+      child: Consumer<MusicLibrary>(
+        builder: (context, musicLib, _) {
+          // Show loading overlay if not loaded yet
+          if (!musicLib.isLoaded) {
+            return Stack(
+              children: [
+                Scaffold(
+                  backgroundColor: theme.scaffoldBackgroundColor,
+                  body: const SizedBox.expand(),
                 ),
+                LoadingOverlay(
+                  progress: musicLib.loadProgress,
+                  status: musicLib.loadStatus,
+                ),
+              ],
+            );
+          }
+
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) _handleBack();
+            },
+            child: Scaffold(
+            // Don't resize the golden-spiral layout when the keyboard opens —
+            // the fixed panels would overflow. Search fields sit at the top, so
+            // the keyboard overlaying the bottom is fine.
+            resizeToAvoidBottomInset: false,
+            backgroundColor: theme.scaffoldBackgroundColor,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: GoldenSpiralNav(
+                      activeIndex: _currentTab,
+                      onChanged: _onTabTap,
+                      sections: [
+                        GoldenSection(
+                           label: 'DISCOVER',
+                           icon: Icons.home_rounded,
+                           panelColor: AudIoTheme.red,
+                           panelForeground: AudIoTheme.ink,
+                           page: HomePage(
+                             onNavigateToLibrary: () => _onTabTap(3),
+                             onNavigateToPodcasts: () => _onTabTap(1),
+                           ),
+                         ),
+                        const GoldenSection(
+                           label: 'PODCASTS',
+                           icon: Icons.podcasts_rounded,
+                           panelColor: AudIoTheme.cream,
+                           panelForeground: AudIoTheme.ink,
+                           page: PodcastPage(),
+                         ),
+                         const GoldenSection(
+                           label: 'ARTISTS',
+                           icon: Icons.person_rounded,
+                           panelColor: AudIoTheme.red,
+                           panelForeground: AudIoTheme.cream,
+                           page: ArtistPage(),
+                         ),
+                         GoldenSection(
+                           label: 'LIBRARY',
+                           icon: Icons.library_music_rounded,
+                           panelColor: AudIoTheme.red,
+                           panelForeground: AudIoTheme.cream,
+                           page: ProfilePage(supabaseAvailable: supabaseAvailable),
+                         ),
+                        const GoldenSection(
+                          label: 'SETTINGS',
+                          icon: Icons.settings_rounded,
+                          panelColor: AudIoTheme.cream,
+                          panelForeground: AudIoTheme.red,
+                          page: SettingsPage(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Consumer<AppAudioHandler>(
+                    builder: (context, handler, _) {
+                      final track = handler.currentTrack;
+                      if (track == null) return const SizedBox.shrink();
+                      return MiniPlayer(track: track, audioHandler: handler, onTap: _openNowPlaying);
+                    },
+                  ),
+                ],
               ),
-              Consumer<AppAudioHandler>(
-                builder: (context, handler, _) {
-                  final track = handler.currentTrack;
-                  if (track == null) return const SizedBox.shrink();
-                  return MiniPlayer(track: track, audioHandler: handler, onTap: _openNowPlaying);
-                },
-              ),
-            ],
+            ),
           ),
-        ),
+          );
+        },
       ),
     );
   }
