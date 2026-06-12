@@ -51,19 +51,48 @@ export async function searchYouTube(query, maxResults = 20) {
 // reliable fix when every client is blocked.
 const PLAYER_CLIENTS = ['default', 'android_vr', 'tv_simply'];
 
+function looksLikeCookieFile(text) {
+  return /# (Netscape|HTTP Cookie File)/i.test(text) || /\t(SID|__Secure-1PSID|LOGIN_INFO)\t/.test(text);
+}
+
 let cookiesPath; // undefined = not resolved yet, null = none configured
 function getCookiesPath() {
   if (cookiesPath !== undefined) return cookiesPath;
   cookiesPath = null;
+
+  // 1. A mounted file is the most robust on Render (Secret Files land in
+  // /etc/secrets/<name>); no base64, no copy-paste truncation.
+  const candidates = [
+    process.env.YTDLP_COOKIES_FILE,
+    '/etc/secrets/cookies.txt',
+  ].filter(Boolean);
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p) && looksLikeCookieFile(fs.readFileSync(p, 'utf8'))) {
+        cookiesPath = p;
+        logger.info({ path: p }, 'yt-dlp cookies configured from file');
+        return cookiesPath;
+      }
+    } catch (err) {
+      logger.warn({ err: err.message, path: p }, 'cookie file unreadable');
+    }
+  }
+
+  // 2. Base64 env var fallback.
   const b64 = process.env.YTDLP_COOKIES_B64;
   if (b64) {
     try {
-      const p = path.join(os.tmpdir(), 'ytdlp-cookies.txt');
-      fs.writeFileSync(p, Buffer.from(b64, 'base64'));
-      cookiesPath = p;
-      logger.info('yt-dlp cookies configured from YTDLP_COOKIES_B64');
+      const decoded = Buffer.from(b64, 'base64').toString('utf8');
+      if (looksLikeCookieFile(decoded)) {
+        const p = path.join(os.tmpdir(), 'ytdlp-cookies.txt');
+        fs.writeFileSync(p, decoded);
+        cookiesPath = p;
+        logger.info('yt-dlp cookies configured from YTDLP_COOKIES_B64');
+      } else {
+        logger.warn({ len: b64.length }, 'YTDLP_COOKIES_B64 set but does not decode to a cookie file');
+      }
     } catch (err) {
-      logger.error({ err }, 'Failed to write yt-dlp cookies file');
+      logger.error({ err: err.message }, 'Failed to write yt-dlp cookies file');
     }
   }
   return cookiesPath;
