@@ -8,7 +8,7 @@ import { getYouTubeAudioUrl, invalidateYouTubeUrl } from '../services/youtube.js
 import { getSoundCloudStreamUrl } from '../services/soundcloud.js';
 import { cacheMiddleware } from '../middleware/cache.js';
 import logger from '../utils/logger.js';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -182,6 +182,31 @@ router.get('/stream/:id/audio', async (req, res) => {
     let url = await resolveStreamUrl(id, source);
     if (!url) {
       res.status(404).json({ error: true, message: 'No audio stream available' });
+      return;
+    }
+
+    // HLS playlists (SoundCloud's default) can't be played by browsers/just_audio
+    // as raw bytes. Transcode to a progressive MP3 stream with ffmpeg so the
+    // same URL plays everywhere. Range/seeking isn't supported for transcoded
+    // streams, so we serve the whole thing as 200.
+    if (/\.m3u8(\?|$)/i.test(url)) {
+      res.status(200);
+      res.setHeader('content-type', 'audio/mpeg');
+      res.setHeader('cache-control', 'no-store');
+      const ff = spawn('ffmpeg', [
+        '-hide_banner', '-loglevel', 'error',
+        '-user_agent', 'Mozilla/5.0',
+        '-i', url,
+        '-vn', '-f', 'mp3', '-ab', '128k',
+        'pipe:1',
+      ]);
+      ff.stdout.pipe(res);
+      ff.stderr.on('data', (d) => logger.warn({ id, source, ff: d.toString().slice(0, 200) }, 'ffmpeg'));
+      ff.on('error', (e) => {
+        logger.error({ err: e.message, id, source }, 'ffmpeg spawn failed');
+        if (!res.headersSent) res.status(502).end(); else res.end();
+      });
+      res.on('close', () => ff.kill('SIGKILL'));
       return;
     }
 
