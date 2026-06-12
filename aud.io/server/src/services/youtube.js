@@ -61,11 +61,17 @@ function getCookiesPath() {
   cookiesPath = null;
 
   // 1. A mounted file is the most robust on Render (Secret Files land in
-  // /etc/secrets/<name>); no base64, no copy-paste truncation.
+  // /etc/secrets/<name>); no base64, no copy-paste truncation. Scan the
+  // secrets dir so the exact filename doesn't matter.
   const candidates = [
     process.env.YTDLP_COOKIES_FILE,
     '/etc/secrets/cookies.txt',
   ].filter(Boolean);
+  try {
+    for (const f of fs.readdirSync('/etc/secrets')) {
+      candidates.push(`/etc/secrets/${f}`);
+    }
+  } catch {}
   for (const p of candidates) {
     try {
       if (fs.existsSync(p) && looksLikeCookieFile(fs.readFileSync(p, 'utf8'))) {
