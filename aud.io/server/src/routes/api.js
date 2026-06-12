@@ -25,6 +25,27 @@ if (!fs.existsSync(DOWNLOAD_DIR)) fs.mkdirSync(DOWNLOAD_DIR, { recursive: true }
 router.get('/debug/ytdlp', async (req, res) => {
   const videoId = (req.query.id || 'khnokW3Mw24').trim();
   const out = { node: process.version, env: { YOUTUBE_DL_DIR: process.env.YOUTUBE_DL_DIR || null } };
+
+  // Materialise cookies the same way the real extractor does, and report on
+  // their shape so we can tell a missing/garbled/expired cookie file apart.
+  let cookiePath = null;
+  const b64 = process.env.YTDLP_COOKIES_B64;
+  out.cookies = { envPresent: !!b64, envLength: b64 ? b64.length : 0 };
+  if (b64) {
+    try {
+      const decoded = Buffer.from(b64, 'base64').toString('utf8');
+      cookiePath = path.join(process.cwd(), 'debug-cookies.txt');
+      fs.writeFileSync(cookiePath, decoded);
+      const lines = decoded.split('\n').filter((l) => l.trim() && !l.startsWith('#'));
+      out.cookies.decodedBytes = decoded.length;
+      out.cookies.firstLine = decoded.split('\n')[0].slice(0, 60);
+      out.cookies.cookieLines = lines.length;
+      out.cookies.hasLoginCookies = /SID|SAPISID|__Secure-1PSID/.test(decoded);
+    } catch (err) {
+      out.cookies.error = err.message;
+    }
+  }
+
   try {
     const ytdlpModule = await import('youtube-dl-exec');
     const binPath = (ytdlpModule.default?.constants || ytdlpModule.constants)?.YOUTUBE_DL_PATH;
@@ -40,23 +61,31 @@ router.get('/debug/ytdlp', async (req, res) => {
     }
 
     out.attempts = [];
+    // Test each client both without and (if available) with cookies.
+    const variants = [{ tag: 'no-cookies', cookies: false }];
+    if (cookiePath) variants.push({ tag: 'with-cookies', cookies: true });
     for (const client of ['default', 'android_vr', 'tv_simply']) {
-      const args = ['--dump-single-json', '--no-warnings', '--skip-download'];
-      if (client !== 'default') args.push('--extractor-args', `youtube:player_client=${client}`);
-      args.push(videoId);
-      try {
-        const { stdout } = await execFileAsync(binPath, args, { timeout: 90000, maxBuffer: 64 * 1024 * 1024 });
-        const data = JSON.parse(stdout);
-        const audio = (data.formats || []).filter(
-          (f) => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')
-        );
-        out.attempts.push({ client, ok: true, audioFormats: audio.length });
-      } catch (err) {
-        out.attempts.push({ client, ok: false, error: (err.stderr || err.message || '').slice(-800) });
+      for (const v of variants) {
+        const args = ['--dump-single-json', '--no-warnings', '--skip-download'];
+        if (client !== 'default') args.push('--extractor-args', `youtube:player_client=${client}`);
+        if (v.cookies) args.push('--cookies', cookiePath);
+        args.push(videoId);
+        try {
+          const { stdout } = await execFileAsync(binPath, args, { timeout: 90000, maxBuffer: 64 * 1024 * 1024 });
+          const data = JSON.parse(stdout);
+          const audio = (data.formats || []).filter(
+            (f) => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')
+          );
+          out.attempts.push({ client, variant: v.tag, ok: true, audioFormats: audio.length });
+        } catch (err) {
+          out.attempts.push({ client, variant: v.tag, ok: false, error: (err.stderr || err.message || '').slice(-600) });
+        }
       }
     }
   } catch (err) {
     out.fatal = err.message;
+  } finally {
+    if (cookiePath) { try { fs.unlinkSync(cookiePath); } catch {} }
   }
   res.json(out);
 });
