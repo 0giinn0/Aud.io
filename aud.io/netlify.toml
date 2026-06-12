@@ -1,0 +1,11 @@
+[build]
+  command = "flutter build web --dart-define=BASE_URL=https://aud-io-server.onrender.com"
+  publish = "build/web"
+
+[build.environment]
+  FLUTTER_VERSION = "3.19.6"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
