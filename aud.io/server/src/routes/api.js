@@ -28,22 +28,42 @@ router.get('/debug/ytdlp', async (req, res) => {
 
   // Materialise cookies the same way the real extractor does, and report on
   // their shape so we can tell a missing/garbled/expired cookie file apart.
+  // Sources, in priority order: a mounted file (Render Secret File) or base64.
   let cookiePath = null;
-  const b64 = process.env.YTDLP_COOKIES_B64;
-  out.cookies = { envPresent: !!b64, envLength: b64 ? b64.length : 0 };
-  if (b64) {
+  let cookieText = null;
+  out.cookies = {};
+  const fileCandidates = [process.env.YTDLP_COOKIES_FILE, '/etc/secrets/cookies.txt'].filter(Boolean);
+  for (const p of fileCandidates) {
     try {
-      const decoded = Buffer.from(b64, 'base64').toString('utf8');
-      cookiePath = path.join(process.cwd(), 'debug-cookies.txt');
-      fs.writeFileSync(cookiePath, decoded);
-      const lines = decoded.split('\n').filter((l) => l.trim() && !l.startsWith('#'));
-      out.cookies.decodedBytes = decoded.length;
-      out.cookies.firstLine = decoded.split('\n')[0].slice(0, 60);
-      out.cookies.cookieLines = lines.length;
-      out.cookies.hasLoginCookies = /SID|SAPISID|__Secure-1PSID/.test(decoded);
-    } catch (err) {
-      out.cookies.error = err.message;
+      if (fs.existsSync(p)) {
+        cookieText = fs.readFileSync(p, 'utf8');
+        cookiePath = p;
+        out.cookies.source = `file:${p}`;
+        break;
+      }
+    } catch {}
+  }
+  if (!cookieText) {
+    const b64 = process.env.YTDLP_COOKIES_B64;
+    out.cookies.envPresent = !!b64;
+    out.cookies.envLength = b64 ? b64.length : 0;
+    if (b64) {
+      try {
+        cookieText = Buffer.from(b64, 'base64').toString('utf8');
+        out.cookies.source = 'env:YTDLP_COOKIES_B64';
+        cookiePath = path.join(process.cwd(), 'debug-cookies.txt');
+        fs.writeFileSync(cookiePath, cookieText);
+      } catch (err) {
+        out.cookies.error = err.message;
+      }
     }
+  }
+  if (cookieText) {
+    const lines = cookieText.split('\n').filter((l) => l.trim() && !l.startsWith('#'));
+    out.cookies.bytes = cookieText.length;
+    out.cookies.firstLine = cookieText.split('\n')[0].slice(0, 60);
+    out.cookies.cookieLines = lines.length;
+    out.cookies.hasLoginCookies = /SID|SAPISID|__Secure-1PSID/.test(cookieText);
   }
 
   try {
@@ -85,7 +105,8 @@ router.get('/debug/ytdlp', async (req, res) => {
   } catch (err) {
     out.fatal = err.message;
   } finally {
-    if (cookiePath) { try { fs.unlinkSync(cookiePath); } catch {} }
+    // Only remove the temp file we wrote ourselves — never the mounted secret.
+    if (cookiePath && cookiePath.endsWith('debug-cookies.txt')) { try { fs.unlinkSync(cookiePath); } catch {} }
   }
   res.json(out);
 });
