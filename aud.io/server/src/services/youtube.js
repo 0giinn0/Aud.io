@@ -72,12 +72,20 @@ function getCookiesPath() {
       candidates.push(`/etc/secrets/${f}`);
     }
   } catch {}
+  // yt-dlp rewrites the cookie file after each request to persist refreshed
+  // session cookies. Render Secret Files are read-only, so copy the contents
+  // into a writable temp file and hand yt-dlp that.
+  const writable = path.join(os.tmpdir(), 'ytdlp-cookies.txt');
   for (const p of candidates) {
     try {
-      if (fs.existsSync(p) && looksLikeCookieFile(fs.readFileSync(p, 'utf8'))) {
-        cookiesPath = p;
-        logger.info({ path: p }, 'yt-dlp cookies configured from file');
-        return cookiesPath;
+      if (fs.existsSync(p)) {
+        const text = fs.readFileSync(p, 'utf8');
+        if (looksLikeCookieFile(text)) {
+          fs.writeFileSync(writable, text);
+          cookiesPath = writable;
+          logger.info({ source: p }, 'yt-dlp cookies loaded from file (writable copy)');
+          return cookiesPath;
+        }
       }
     } catch (err) {
       logger.warn({ err: err.message, path: p }, 'cookie file unreadable');
