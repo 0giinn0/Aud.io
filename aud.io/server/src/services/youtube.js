@@ -1,3 +1,6 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import YTMusic from 'ytmusic-api';
 import ytDlpExec from 'youtube-dl-exec';
 import logger from '../utils/logger.js';
@@ -42,33 +45,65 @@ export async function searchYouTube(query, maxResults = 20) {
   }
 }
 
+// Datacenter IPs (Render, AWS, ...) often get YouTube's "confirm you're not
+// a bot" wall on the default web client; other player clients are frequently
+// exempt, so try a few before giving up. Cookies (YTDLP_COOKIES_B64) are the
+// reliable fix when every client is blocked.
+const PLAYER_CLIENTS = ['default', 'android_vr', 'tv_simply'];
+
+let cookiesPath; // undefined = not resolved yet, null = none configured
+function getCookiesPath() {
+  if (cookiesPath !== undefined) return cookiesPath;
+  cookiesPath = null;
+  const b64 = process.env.YTDLP_COOKIES_B64;
+  if (b64) {
+    try {
+      const p = path.join(os.tmpdir(), 'ytdlp-cookies.txt');
+      fs.writeFileSync(p, Buffer.from(b64, 'base64'));
+      cookiesPath = p;
+      logger.info('yt-dlp cookies configured from YTDLP_COOKIES_B64');
+    } catch (err) {
+      logger.error({ err }, 'Failed to write yt-dlp cookies file');
+    }
+  }
+  return cookiesPath;
+}
+
+function pickAudioUrl(data) {
+  const audioFormats = (data.formats || [])
+    .filter((f) => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
+    .sort((a, b) => (b.abr || 0) - (a.abr || 0));
+  return audioFormats[0]?.url || null;
+}
+
 export async function getYouTubeAudioUrl(videoId) {
   const hit = urlCache.get(videoId);
   if (hit && hit.expires > Date.now()) return hit.url;
 
-  try {
-    const data = await ytDlpExec(videoId, {
-      dumpSingleJson: true,
-      noCheckCertificates: true,
-      noWarnings: true,
-      preferFreeFormats: true,
-    });
+  for (const client of PLAYER_CLIENTS) {
+    try {
+      const opts = {
+        dumpSingleJson: true,
+        noCheckCertificates: true,
+        noWarnings: true,
+        preferFreeFormats: true,
+      };
+      if (client !== 'default') opts.extractorArgs = `youtube:player_client=${client}`;
+      const cookies = getCookiesPath();
+      if (cookies) opts.cookies = cookies;
 
-    // Pick the best audio-only format (highest abr)
-    const audioFormats = (data.formats || [])
-      .filter((f) => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
-      .sort((a, b) => (b.abr || 0) - (a.abr || 0));
-
-    if (audioFormats.length === 0) {
-      logger.warn({ videoId }, 'No audio-only format found');
-      return null;
+      const data = await ytDlpExec(videoId, opts);
+      const url = pickAudioUrl(data);
+      if (url) {
+        if (client !== 'default') logger.info({ videoId, client }, 'Extracted via fallback player client');
+        urlCache.set(videoId, { url, expires: Date.now() + URL_TTL_MS });
+        return url;
+      }
+      logger.warn({ videoId, client }, 'No audio-only format found');
+    } catch (err) {
+      const stderr = (err?.stderr || err?.message || '').slice(0, 500);
+      logger.error({ videoId, client, stderr }, 'YouTube audio URL extraction failed');
     }
-
-    const url = audioFormats[0].url || null;
-    if (url) urlCache.set(videoId, { url, expires: Date.now() + URL_TTL_MS });
-    return url;
-  } catch (err) {
-    logger.error({ err, videoId }, 'YouTube audio URL extraction failed');
-    return null;
   }
+  return null;
 }

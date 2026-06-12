@@ -13,6 +13,11 @@ RUN pip3 install --no-cache-dir --break-system-packages yt-dlp
 
 WORKDIR /app
 
+# Use the pip-installed yt-dlp (kept fresh at every build) instead of the
+# copy youtube-dl-exec would download from GitHub during npm install.
+ENV YOUTUBE_DL_SKIP_DOWNLOAD=true
+ENV YOUTUBE_DL_DIR=/usr/local/bin
+
 COPY aud.io/server/package.json aud.io/server/package-lock.json ./
 RUN npm install --omit=dev
 
