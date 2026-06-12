@@ -10,6 +10,7 @@ import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/download_service.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
 import 'package:aud_io/widgets/track_context_sheet.dart';
+import 'package:aud_io/widgets/queue_sheet.dart';
 
 /// Bauhaus/Swiss-poster player: red canvas, giant black vinyl circle,
 /// oversized time numerals, circular black play button. Layout follows the
@@ -377,6 +378,8 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                 },
               ),
               _downloadButton(track),
+              _flatButton(Icons.queue_music_rounded, 22,
+                  onTap: () => showQueueSheet(context)),
               _flatButton(Icons.more_horiz_rounded, 24,
                   onTap: () => showTrackContextMenu(context, track)),
             ],

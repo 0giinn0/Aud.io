@@ -1,4 +1,4 @@
-enum TrackSource { youtube, soundcloud, fma, local, fake }
+enum TrackSource { youtube, soundcloud, fma, local, fake, podcast }
 
 class Track {
   final String id;
@@ -85,6 +85,7 @@ class Track {
       case TrackSource.fma: return 'Free Music Archive';
       case TrackSource.local: return 'Local';
       case TrackSource.fake: return 'Demo';
+      case TrackSource.podcast: return 'Podcast';
     }
   }
 
@@ -95,6 +96,7 @@ class Track {
       case TrackSource.fma: return 'FMA';
       case TrackSource.local: return 'LOCAL';
       case TrackSource.fake: return 'DEMO';
+      case TrackSource.podcast: return 'POD';
     }
   }
 

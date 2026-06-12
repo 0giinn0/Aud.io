@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(run)",
+      "Bash(flutter --version)",
+      "Bash(flutter devices *)",
+      "Bash(flutter pub *)",
+      "Bash(flutter run *)",
+      "Bash(Select-String -Pattern \"class \\(MusicLibrary|DownloadService|SettingsService|LocalFileScanner|LocalPlaylistService|AuthService|DatabaseService|AppAudioHandler\\)\" lib\\\\services\\\\*.dart lib\\\\main.dart)",
+      "Bash(Get-Process -Name \"dart\" -ErrorAction SilentlyContinue)",
+      "Bash(Stop-Process -Force)",
+      "Bash(Get-Process -Name \"flutter\" -ErrorAction SilentlyContinue)",
+      "Bash(Write-Output \"done\")",
+      "PowerShell(Get-Process *)",
+      "Bash(node src/index.js)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3001/health\" -UseBasicParsing | Select-Object StatusCode, Content)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3001/api/search?q=test&max=3\" -UseBasicParsing | Select-Object StatusCode, @{N='Body';E={$_.Content.Substring\\(0, [Math]::Min\\(500, $_.Content.Length\\)\\)}})",
+      "PowerShell($headers = @{ \"Origin\" = \"http://localhost:8082\" }; $r = Invoke-WebRequest -Uri \"http://localhost:3001/api/search?q=test&max=1\" -Headers $headers -UseBasicParsing; $r.Headers | Select-Object -Property \"Access-Control-Allow-Origin\")",
+      "PowerShell(New-Item *)",
+      "PowerShell(Get-ChildItem -Recurse \"aud.io\\\\lib\" -File | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"D:\\\\NEW THING\\\\aud.io\\\\lib\\\\\", \"\"\\) })"
+    ]
+  }
+}

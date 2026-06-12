@@ -223,6 +223,12 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
         // IP-bound to the server, and the proxy URL needs no round trip
         // before playback can start.
         return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
+      case TrackSource.podcast:
+        final purl = track.audioUrl;
+        if (purl == null) return null;
+        // Podcast hosts rarely send CORS headers, so on web go through the
+        // generic proxy; native can hit the URL directly.
+        return Uri.parse(kIsWeb ? ApiService.proxyDirectUrl(purl) : purl);
       default:
         // On web, route through the proxy too: it adds the CORS headers the
         // browser requires, follows upstream redirects server-side, and serves
@@ -243,7 +249,9 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
     final idx = _currentIndex;
     if (idx == null || idx + 1 >= _queue.length) return;
     final next = _queue[idx + 1];
-    if (next.source == TrackSource.local || next.source == TrackSource.fake) return;
+    if (next.source == TrackSource.local ||
+        next.source == TrackSource.fake ||
+        next.source == TrackSource.podcast) return;
     if (next.source != TrackSource.youtube && next.audioUrl != null) return;
     ApiService.getStreamUrl(next.id, next.source).then((url) {
       if (next.source != TrackSource.youtube && url != null) {
@@ -277,6 +285,12 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
     }
   }
 
+  @override
+  Future<void> skipToQueueItem(int index) async {
+    if (index < 0 || index >= _queue.length) return;
+    await _loadTrack(index);
+  }
+
   void setQueue(List<Track> tracks, {int? startIndex}) {
     _queue = List.from(tracks);
     _currentIndex = startIndex ?? 0;
@@ -290,6 +304,21 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
   void addToQueue(Track track) {
     _queue.add(track);
     _broadcastQueue();
+  }
+
+  /// Drag-reorder the queue while keeping the currently-playing track current.
+  void reorderQueue(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= _queue.length) return;
+    final current = _currentIndex != null ? _queue[_currentIndex!] : null;
+    if (newIndex > oldIndex) newIndex -= 1;
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex > _queue.length - 1) newIndex = _queue.length - 1;
+    final track = _queue.removeAt(oldIndex);
+    _queue.insert(newIndex, track);
+    if (current != null) _currentIndex = _queue.indexOf(current);
+    _broadcastQueue();
+    playbackState.add(playbackState.value.copyWith(queueIndex: _currentIndex));
+    notifyListeners();
   }
 
   void removeFromQueue(int index) {

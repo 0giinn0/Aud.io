@@ -15,7 +15,6 @@ import 'package:aud_io/pages/home_page.dart';
 import 'package:aud_io/pages/profile_page.dart';
 import 'package:aud_io/pages/now_playing_page.dart';
 import 'package:aud_io/pages/settings_page.dart';
-import 'package:aud_io/pages/instrument_builder_page.dart';
 import 'package:aud_io/pages/podcast_page.dart';
 import 'package:aud_io/widgets/mini_player.dart';
 import 'package:aud_io/widgets/golden_spiral_nav.dart';
@@ -258,7 +257,7 @@ class _AppShellState extends State<AppShell> {
                       panelColor: AudIoTheme.red,
                       panelForeground: AudIoTheme.ink,
                       page: HomePage(
-                        onNavigateToLibrary: () => _onTabTap(3),
+                        onNavigateToLibrary: () => _onTabTap(2),
                         onNavigateToPodcasts: () => _onTabTap(1),
                       ),
                     ),
@@ -269,15 +268,8 @@ class _AppShellState extends State<AppShell> {
                       panelForeground: AudIoTheme.ink,
                       page: PodcastPage(),
                     ),
-                    const GoldenSection(
-                      label: 'CREATE',
-                      icon: Icons.piano_rounded,
-                      panelColor: AudIoTheme.ink,
-                      panelForeground: AudIoTheme.cream,
-                      page: InstrumentBuilderPage(),
-                    ),
                     GoldenSection(
-                      label: 'PROFILE',
+                      label: 'LIBRARY',
                       icon: Icons.person_rounded,
                       panelColor: AudIoTheme.red,
                       panelForeground: AudIoTheme.cream,

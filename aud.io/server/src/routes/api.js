@@ -287,6 +287,46 @@ router.get('/stream/:id/audio', async (req, res) => {
   }
 });
 
+// GET /api/proxy?url=<encoded> — stream an arbitrary http(s) audio URL with
+// CORS + Range support. Used for podcast episodes, whose RSS audio hosts often
+// don't send CORS headers (so browsers can't play them directly).
+router.get('/proxy', async (req, res) => {
+  const target = req.query.url;
+  if (!target || !/^https?:\/\//i.test(target)) {
+    res.status(400).json({ error: true, message: 'Missing or invalid ?url=' });
+    return;
+  }
+  try {
+    const upstream = await axios.get(target, {
+      responseType: 'stream',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        ...(req.headers.range ? { Range: req.headers.range } : {}),
+      },
+      timeout: 20000,
+      maxRedirects: 5,
+      validateStatus: (s) => s < 500,
+    });
+    if (upstream.status >= 400) {
+      upstream.data.destroy();
+      res.status(upstream.status).json({ error: true, message: 'Upstream rejected the request' });
+      return;
+    }
+    res.status(upstream.status);
+    for (const h of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+      if (upstream.headers[h]) res.setHeader(h, upstream.headers[h]);
+    }
+    if (!upstream.headers['accept-ranges']) res.setHeader('accept-ranges', 'bytes');
+    res.setHeader('cache-control', 'no-store');
+    upstream.data.pipe(res);
+    res.on('close', () => upstream.data.destroy());
+  } catch (err) {
+    logger.error({ err: err.message, target }, 'Generic proxy failed');
+    if (!res.headersSent) res.status(502).json({ error: true, message: 'Proxy failed' });
+    else res.end();
+  }
+});
+
 // GET /api/fma/details/:id - get FMA track details (artist credit, license)
 router.get('/fma/details/:id', cacheMiddleware(300), async (req, res, next) => {
   try {

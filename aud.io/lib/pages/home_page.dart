@@ -302,6 +302,8 @@ class _HomePageState extends State<HomePage> {
         return const Color(0xFF6366F1);
       case TrackSource.fake:
         return AudIoTheme.subtle;
+      case TrackSource.podcast:
+        return const Color(0xFF9C27B0);
     }
   }
 
