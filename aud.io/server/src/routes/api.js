@@ -19,6 +19,48 @@ const router = Router();
 const DOWNLOAD_DIR = path.join(process.cwd(), 'downloads');
 if (!fs.existsSync(DOWNLOAD_DIR)) fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 
+// GET /api/debug/ytdlp?id=videoId — temporary diagnostics for extraction
+// failures on hosts we can't shell into (returns yt-dlp version + stderr
+// per player client).
+router.get('/debug/ytdlp', async (req, res) => {
+  const videoId = (req.query.id || 'khnokW3Mw24').trim();
+  const out = { node: process.version, env: { YOUTUBE_DL_DIR: process.env.YOUTUBE_DL_DIR || null } };
+  try {
+    const ytdlpModule = await import('youtube-dl-exec');
+    const binPath = (ytdlpModule.default?.constants || ytdlpModule.constants)?.YOUTUBE_DL_PATH;
+    out.binary = binPath || null;
+    out.binaryExists = binPath ? fs.existsSync(binPath) : false;
+    if (!out.binaryExists) return res.json(out);
+
+    try {
+      const { stdout } = await execFileAsync(binPath, ['--version'], { timeout: 20000 });
+      out.version = stdout.trim();
+    } catch (err) {
+      out.version = `ERROR: ${(err.stderr || err.message || '').slice(-300)}`;
+    }
+
+    out.attempts = [];
+    for (const client of ['default', 'android_vr', 'tv_simply']) {
+      const args = ['--dump-single-json', '--no-warnings', '--skip-download'];
+      if (client !== 'default') args.push('--extractor-args', `youtube:player_client=${client}`);
+      args.push(videoId);
+      try {
+        const { stdout } = await execFileAsync(binPath, args, { timeout: 90000, maxBuffer: 64 * 1024 * 1024 });
+        const data = JSON.parse(stdout);
+        const audio = (data.formats || []).filter(
+          (f) => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')
+        );
+        out.attempts.push({ client, ok: true, audioFormats: audio.length });
+      } catch (err) {
+        out.attempts.push({ client, ok: false, error: (err.stderr || err.message || '').slice(-800) });
+      }
+    }
+  } catch (err) {
+    out.fatal = err.message;
+  }
+  res.json(out);
+});
+
 // GET /api/search?q=query&max=20
 router.get('/search', cacheMiddleware(60), async (req, res, next) => {
   try {
