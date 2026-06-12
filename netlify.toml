@@ -1,7 +1,7 @@
 [build]
   base = "aud.io"
   # Netlify's build image has no Flutter, so fetch the pinned SDK first.
-  command = "git clone https://github.com/flutter/flutter.git -b 3.44.0 --depth 1 _flutter && _flutter/bin/flutter build web --release --dart-define=BASE_URL=https://aud-io-server.onrender.com"
+  command = "git clone https://github.com/flutter/flutter.git -b 3.44.0 --depth 1 _flutter && _flutter/bin/flutter build web --release --dart-define=BASE_URL=https://aud-io-1.onrender.com"
   publish = "build/web"
 
 [[redirects]]
