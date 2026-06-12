@@ -224,6 +224,13 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
         // before playback can start.
         return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
       default:
+        // On web, route through the proxy too: it adds the CORS headers the
+        // browser requires, follows upstream redirects server-side, and serves
+        // progressive bytes with Range support. Native plays the direct
+        // upstream URL (no CORS limits) to save a hop.
+        if (kIsWeb) {
+          return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
+        }
         final url = track.audioUrl ??= await ApiService.getStreamUrl(track.id, track.source);
         return url != null ? Uri.parse(url) : null;
     }
