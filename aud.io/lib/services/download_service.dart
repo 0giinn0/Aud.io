@@ -3,6 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/track.dart';
+import 'package:aud_io/services/api_service.dart';
+
+// Notification callback type
+typedef DownloadNotificationCallback = void Function(DownloadNotification notification);
 
 class DownloadService extends ChangeNotifier {
   static final DownloadService _instance = DownloadService._internal();
@@ -12,9 +16,19 @@ class DownloadService extends ChangeNotifier {
   final Map<String, DownloadTask> _tasks = {};
   final Map<String, String> _localFiles = {};
   Directory? _downloadDir;
+  DownloadNotificationCallback? _notificationCallback;
 
   Map<String, DownloadTask> get tasks => Map.unmodifiable(_tasks);
   Map<String, String> get localFiles => Map.unmodifiable(_localFiles);
+
+  /// Set a callback for download notifications
+  void setNotificationCallback(DownloadNotificationCallback callback) {
+    _notificationCallback = callback;
+  }
+
+  void _notify(DownloadNotification notification) {
+    _notificationCallback?.call(notification);
+  }
 
   Future<void> init() async {
     if (!kIsWeb) {
@@ -45,16 +59,22 @@ class DownloadService extends ChangeNotifier {
 
   String? getLocalPath(String id) => _localFiles[id];
 
-  Future<void> downloadTrack(String id, TrackSource source) async {
+  Future<void> downloadTrack(String id, TrackSource source, {String? trackTitle}) async {
     if (_tasks.containsKey(id)) return;
     if (isDownloaded(id)) return;
 
-    final task = DownloadTask(id: id, source: source, status: DownloadStatus.downloading, progress: 0.0);
+    final task = DownloadTask(id: id, source: source, status: DownloadStatus.downloading, progress: 0.0, title: trackTitle);
     _tasks[id] = task;
+    _notify(DownloadNotification(
+      id: id,
+      type: DownloadNotificationType.started,
+      title: trackTitle ?? 'Download starting',
+      progress: 0.0,
+    ));
     notifyListeners();
 
     try {
-      const baseUrl = 'http://localhost:3001';
+      final baseUrl = ApiService.baseUrl;
       final response = await http.post(
         Uri.parse('$baseUrl/api/download'),
         headers: {'Content-Type': 'application/json'},
@@ -72,6 +92,12 @@ class DownloadService extends ChangeNotifier {
           final localPath = '${_downloadDir!.path}/$id.mp3';
           _localFiles[id] = localPath;
         }
+        _notify(DownloadNotification(
+          id: id,
+          type: DownloadNotificationType.completed,
+          title: trackTitle ?? 'Download complete',
+          progress: 1.0,
+        ));
         notifyListeners();
         return;
       }
@@ -89,6 +115,12 @@ class DownloadService extends ChangeNotifier {
           sink.add(chunk);
           receivedBytes += chunk.length;
           task.progress = totalBytes > 0 ? receivedBytes / totalBytes : 0.5;
+          _notify(DownloadNotification(
+            id: id,
+            type: DownloadNotificationType.progress,
+            title: trackTitle ?? 'Downloading...',
+            progress: task.progress,
+          ));
           notifyListeners();
         }
         await sink.close();
@@ -97,10 +129,23 @@ class DownloadService extends ChangeNotifier {
 
       task.status = DownloadStatus.completed;
       task.progress = 1.0;
+      _notify(DownloadNotification(
+        id: id,
+        type: DownloadNotificationType.completed,
+        title: trackTitle ?? 'Download complete',
+        progress: 1.0,
+      ));
       notifyListeners();
     } catch (e) {
       task.status = DownloadStatus.failed;
       task.error = e.toString();
+      _notify(DownloadNotification(
+        id: id,
+        type: DownloadNotificationType.failed,
+        title: trackTitle ?? 'Download failed',
+        error: e.toString(),
+        progress: 0.0,
+      ));
       notifyListeners();
     }
   }
@@ -147,6 +192,7 @@ class DownloadTask {
   DownloadStatus status;
   double progress;
   String? error;
+  String? title;
 
   DownloadTask({
     required this.id,
@@ -154,7 +200,39 @@ class DownloadTask {
     required this.status,
     required this.progress,
     this.error,
+    this.title,
   });
 }
 
 enum DownloadStatus { idle, downloading, completed, failed }
+
+enum DownloadNotificationType { started, progress, completed, failed }
+
+class DownloadNotification {
+  final String id;
+  final DownloadNotificationType type;
+  final String title;
+  final double progress;
+  final String? error;
+
+  DownloadNotification({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.progress,
+    this.error,
+  });
+
+  String get message {
+    switch (type) {
+      case DownloadNotificationType.started:
+        return 'Started downloading...';
+      case DownloadNotificationType.progress:
+        return 'Downloading ${(progress * 100).toStringAsFixed(0)}%';
+      case DownloadNotificationType.completed:
+        return 'Downloaded successfully';
+      case DownloadNotificationType.failed:
+        return 'Download failed: $error';
+    }
+  }
+}

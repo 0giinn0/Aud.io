@@ -28,17 +28,15 @@ class ProfilePage extends StatelessWidget {
                 fontSize: 22, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
               const SizedBox(height: 20),
 
-              // Row 1: Create + Favorites + Upload
-              Row(
-                children: [
-                  Expanded(child: _buildCreateCard(context, service)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildFavoritesCard(context, service)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildUploadCard(context)),
-                ],
-              ),
-              const SizedBox(height: 12),
+               // Row 1: Create + Favorites
+               Row(
+                 children: [
+                   Expanded(child: _buildCreateCard(context, service)),
+                   const SizedBox(width: 12),
+                   Expanded(child: _buildFavoritesCard(context, service)),
+                 ],
+               ),
+               const SizedBox(height: 12),
 
               // Row 2: Stats row
               Row(
@@ -109,78 +107,6 @@ class ProfilePage extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Widget _buildUploadCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _pickAndUploadAudio(context),
-      child: Container(
-        height: 120,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AudIoTheme.primary.withValues(alpha: 0.12),
-              AudIoTheme.surface,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AudIoTheme.border, width: 0.5),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 32, height: 32,
-              decoration: BoxDecoration(
-                color: AudIoTheme.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.upload_rounded, size: 18, color: AudIoTheme.primary),
-            ),
-            const Spacer(),
-            Text('Upload', style: TextStyle(
-              fontSize: 16, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
-            Text('Audio', style: TextStyle(
-              fontSize: 16, color: AudIoTheme.primary, fontWeight: FontWeight.w700)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _pickAndUploadAudio(BuildContext context) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
-        allowMultiple: false,
-        withData: true,
-      );
-      if (result == null || result.files.isEmpty) return;
-
-      final file = result.files.first;
-      final bytes = file.bytes;
-      if (bytes == null) return;
-
-      final blobUrl = await createAudioBlobUrl(bytes, file.name);
-      if (blobUrl == null) return;
-
-      final track = Track(
-        id: 'upload_${DateTime.now().millisecondsSinceEpoch}',
-        title: file.name.replaceAll(RegExp(r'\.[^.]+$'), ''),
-        artist: 'Uploaded',
-        audioUrl: blobUrl,
-        source: TrackSource.local,
-      );
-
-      if (!context.mounted) return;
-      context.read<LocalFileScanner>().addUploadedTrack(track);
-      context.read<AppAudioHandler>().setQueue([track]);
-    } catch (e) {
-      debugPrint('aud.io upload error: $e');
-    }
   }
 
   Widget _buildFavoritesCard(BuildContext context, LocalPlaylistService service) {

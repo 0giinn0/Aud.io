@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
+import 'package:aud_io/core/theme/witty_strings.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/download_service.dart';
@@ -74,31 +75,34 @@ class MiniPlayer extends StatelessWidget {
                         const SizedBox(width: AudIoTheme.s3),
                         // Track info.
                         Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(track.title,
+                          child: Tooltip(
+                            message: WittyStrings.randomFrom(WittyStrings.nowPlayingJokes),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(track.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: AudIoTheme.cream,
+                                    )),
+                                const SizedBox(height: 1),
+                                Text(
+                                  '${track.artistDisplay} · ${track.sourceShort.toLowerCase()}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AudIoTheme.cream,
-                                  )),
-                              const SizedBox(height: 1),
-                              Text(
-                                '${track.artistDisplay} · ${track.sourceShort.toLowerCase()}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.5,
-                                  color: AudIoTheme.cream.withValues(alpha: 0.55),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 0.5,
+                                    color: AudIoTheme.cream.withValues(alpha: 0.55),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                         if (isDownloaded || isDownloading)
