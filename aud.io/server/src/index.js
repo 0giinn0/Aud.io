@@ -13,8 +13,8 @@ const app = express();
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 // Extra origins (e.g. a custom domain) can be added via ALLOWED_ORIGINS,
-// a comma-separated list. localhost, *.onrender.com and *.netlify.app
-// (where the web app is hosted) are always allowed.
+// a comma-separated list. localhost, *.onrender.com, *.netlify.app and
+// *.pages.dev (Cloudflare) are always allowed.
 const extraOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((o) => o.trim())
@@ -25,6 +25,7 @@ function isAllowedOrigin(origin) {
     /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
     /^https?:\/\/([a-z0-9-]+\.)*onrender\.com$/.test(origin) ||
     /^https?:\/\/([a-z0-9-]+\.)*netlify\.app$/.test(origin) ||
+    /^https?:\/\/([a-z0-9-]+\.)*pages\.dev$/.test(origin) ||
     extraOrigins.includes(origin)
   );
 }
