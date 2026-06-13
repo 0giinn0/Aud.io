@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/api_service.dart';
+import 'download_platform.dart' if (dart.library.html) 'download_platform_web.dart';
 
 // Notification callback type
 typedef DownloadNotificationCallback = void Function(DownloadNotification notification);
@@ -58,7 +59,7 @@ class DownloadService extends ChangeNotifier {
 
   String? getLocalPath(String id) => _localFiles[id];
 
-  /// Download a YouTube/SoundCloud track via yt-dlp server
+  /// Download a YouTube/SoundCloud track
   Future<void> downloadTrack(String id, TrackSource source, {String? trackTitle}) async {
     if (_tasks.containsKey(id)) return;
     if (isDownloaded(id)) return;
@@ -80,32 +81,31 @@ class DownloadService extends ChangeNotifier {
         throw Exception('Server error: ${response.statusCode}');
       }
 
-      if (response.body.contains('"cached":true')) {
+      final fileUrl = '$baseUrl/api/download/$id';
+
+      if (kIsWeb) {
+        // Web: open download URL in new tab to trigger browser's native download
+        triggerDownload(fileUrl, trackTitle ?? id);
         task.status = DownloadStatus.completed;
         task.progress = 1.0;
-        if (!kIsWeb) {
-          final localPath = '${_downloadDir!.path}/$id.mp3';
-          _localFiles[id] = localPath;
-        }
         _notify(DownloadNotification(id: id, type: DownloadNotificationType.completed, title: trackTitle ?? 'Download complete', progress: 1.0));
         notifyListeners();
         return;
       }
 
-      final fileUrl = '$baseUrl/api/download/$id';
+      // Mobile: stream to local file
       final req = http.Request('GET', Uri.parse(fileUrl));
       final streamed = await http.Client().send(req);
       final totalBytes = streamed.contentLength ?? 0;
       int receivedBytes = 0;
 
-      if (!kIsWeb && _downloadDir != null) {
+      if (_downloadDir != null) {
         final file = File('${_downloadDir!.path}/$id.mp3');
         final sink = file.openWrite();
         await for (final chunk in streamed.stream) {
           sink.add(chunk);
           receivedBytes += chunk.length;
           task.progress = totalBytes > 0 ? receivedBytes / totalBytes : 0.5;
-          _notify(DownloadNotification(id: id, type: DownloadNotificationType.progress, title: trackTitle ?? 'Downloading...', progress: task.progress));
           notifyListeners();
         }
         await sink.close();
@@ -135,39 +135,31 @@ class DownloadService extends ChangeNotifier {
     notifyListeners();
 
     try {
+      if (kIsWeb) {
+        // Web: trigger browser download of the audio URL directly
+        triggerDownload(ApiService.proxyDirectUrl(audioUrl), title ?? episodeId);
+        task.status = DownloadStatus.completed;
+        task.progress = 1.0;
+        _notify(DownloadNotification(id: episodeId, type: DownloadNotificationType.completed, title: title ?? 'Download complete', progress: 1.0));
+        notifyListeners();
+        return;
+      }
+
+      // Mobile: stream to local file via proxy
       final baseUrl = ApiService.baseUrl;
-      // Proxy the podcast URL through our server for CORS + Range support
       final proxyUrl = '$baseUrl/api/proxy?url=${Uri.encodeQueryComponent(audioUrl)}';
       final req = http.Request('GET', Uri.parse(proxyUrl));
       final streamed = await http.Client().send(req).timeout(const Duration(minutes: 5));
       final totalBytes = streamed.contentLength ?? 0;
       int receivedBytes = 0;
 
-      if (totalBytes == 0) {
-        // Fallback: try direct URL
-        streamed.stream.drain();
-        final fallbackReq = http.Request('GET', Uri.parse(audioUrl));
-        final fallbackStreamed = await http.Client().send(fallbackReq).timeout(const Duration(minutes: 5));
-        if (!kIsWeb && _downloadDir != null) {
-          final file = File('${_downloadDir!.path}/$episodeId.mp3');
-          final sink = file.openWrite();
-          await for (final chunk in fallbackStreamed.stream) {
-            sink.add(chunk);
-            receivedBytes += chunk.length;
-            task.progress = 0.5;
-            notifyListeners();
-          }
-          await sink.close();
-          _localFiles[episodeId] = file.path;
-        }
-      } else if (!kIsWeb && _downloadDir != null) {
+      if (_downloadDir != null) {
         final file = File('${_downloadDir!.path}/$episodeId.mp3');
         final sink = file.openWrite();
         await for (final chunk in streamed.stream) {
           sink.add(chunk);
           receivedBytes += chunk.length;
           task.progress = totalBytes > 0 ? receivedBytes / totalBytes : 0.5;
-          _notify(DownloadNotification(id: episodeId, type: DownloadNotificationType.progress, title: title ?? 'Downloading...', progress: task.progress));
           notifyListeners();
         }
         await sink.close();

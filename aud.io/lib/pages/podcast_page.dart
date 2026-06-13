@@ -216,48 +216,97 @@ class _PodcastPageState extends State<PodcastPage> {
 
   Widget _buildGenreChips() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: SizedBox(
-        height: 40,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: _genres.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            final genre = _genres[index];
-            final isActive = _activeGenre == genre['name'];
-            final color = genre['color'] as Color;
-            return GestureDetector(
-              onTap: () => _searchGenre(genre['name'] as String),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isActive ? color : color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isActive ? color : color.withValues(alpha: 0.35),
-                    width: 1,
-                  ),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: List.generate((_genres.length / 2).ceil(), (rowIndex) {
+          final firstIdx = rowIndex * 2;
+          final secondIdx = firstIdx + 1;
+          final firstGenre = _genres[firstIdx];
+          final secondGenre = secondIdx < _genres.length ? _genres[secondIdx] : null;
+          final firstActive = _activeGenre == firstGenre['name'];
+          final secondActive = secondGenre != null && _activeGenre == secondGenre['name'];
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 618,
+                  child: _buildGenreTile(firstGenre, isActive: firstActive, isBig: true),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(genre['icon'] as IconData, size: 13,
-                      color: isActive ? Colors.white : color),
-                    const SizedBox(width: 5),
-                    Text(genre['name'] as String,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isActive ? Colors.white : color,
-                        fontWeight: FontWeight.w600,
-                      )),
-                  ],
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 382,
+                  child: secondGenre != null
+                      ? _buildGenreTile(secondGenre, isActive: secondActive, isBig: false)
+                      : const SizedBox.shrink(),
                 ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildGenreTile(Map<String, dynamic> genre, {required bool isActive, required bool isBig}) {
+    final color = genre['color'] as Color;
+    final icon = genre['icon'] as IconData;
+    final name = genre['name'] as String;
+
+    return GestureDetector(
+      onTap: () => _searchGenre(name),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        height: isBig ? 90 : 76,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: isActive
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [color.withAlpha(80), color.withAlpha(30), AudIoTheme.surface],
+                  stops: const [0.0, 0.4, 1.0],
+                )
+              : null,
+          color: isActive ? null : AudIoTheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive ? color : color.withAlpha(30),
+            width: isActive ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: isActive ? color.withAlpha(40) : color.withAlpha(20),
+                borderRadius: BorderRadius.circular(10),
               ),
-            );
-          },
+              child: Icon(icon, size: 16, color: isActive ? color : color.withAlpha(180)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(name, style: TextStyle(
+                    fontSize: 11,
+                    color: isActive ? color : AudIoTheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  )),
+                  if (isActive)
+                    Text('Showing results', style: TextStyle(
+                      fontSize: 8,
+                      color: color.withAlpha(180),
+                    )),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
