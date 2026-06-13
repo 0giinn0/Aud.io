@@ -16,7 +16,6 @@ import 'package:aud_io/pages/profile_page.dart';
 import 'package:aud_io/pages/now_playing_page.dart';
 import 'package:aud_io/pages/settings_page.dart';
 import 'package:aud_io/pages/podcast_page.dart';
-import 'package:aud_io/pages/artist_page.dart';
 import 'package:aud_io/widgets/mini_player.dart';
 import 'package:aud_io/widgets/golden_spiral_nav.dart';
 import 'package:aud_io/widgets/loading_bar.dart';
@@ -319,30 +318,23 @@ class _AppShellState extends State<AppShell> {
                       activeIndex: _currentTab,
                       onChanged: _onTabTap,
                       sections: [
-                        GoldenSection(
-                           label: 'DISCOVER',
-                           icon: Icons.home_rounded,
-                           panelColor: AudIoTheme.red,
-                           panelForeground: AudIoTheme.ink,
-                           page: HomePage(
-                             onNavigateToLibrary: () => _onTabTap(3),
-                             onNavigateToPodcasts: () => _onTabTap(1),
-                           ),
-                         ),
-                        const GoldenSection(
-                           label: 'PODCASTS',
-                           icon: Icons.podcasts_rounded,
-                           panelColor: AudIoTheme.cream,
-                           panelForeground: AudIoTheme.ink,
-                           page: PodcastPage(),
-                         ),
+                         GoldenSection(
+                            label: 'DISCOVER',
+                            icon: Icons.home_rounded,
+                            panelColor: AudIoTheme.red,
+                            panelForeground: AudIoTheme.ink,
+                            page: HomePage(
+                              onNavigateToLibrary: () => _onTabTap(2),
+                              onNavigateToPodcasts: () => _onTabTap(1),
+                            ),
+                          ),
                          const GoldenSection(
-                           label: 'ARTISTS',
-                           icon: Icons.person_rounded,
-                           panelColor: AudIoTheme.red,
-                           panelForeground: AudIoTheme.cream,
-                           page: ArtistPage(),
-                         ),
+                            label: 'PODCASTS',
+                            icon: Icons.podcasts_rounded,
+                            panelColor: AudIoTheme.cream,
+                            panelForeground: AudIoTheme.ink,
+                            page: PodcastPage(),
+                          ),
                          GoldenSection(
                            label: 'LIBRARY',
                            icon: Icons.library_music_rounded,
