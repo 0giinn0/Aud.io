@@ -1,0 +1,6 @@
+name = "aud-io-web"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "build/web"
+
+[vars]
+BASE_URL = "https://aud-io-1.onrender.com"
