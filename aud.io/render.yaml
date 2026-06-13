@@ -19,11 +19,3 @@ services:
         value: aud.io/1.0
       - key: SOUNDCLOUD_CLIENT_ID
         sync: false
-
-  - type: web
-    name: aud-io-web
-    runtime: docker
-    repo: https://github.com/0giinn0/Aud.io
-    branch: main
-    dockerfilePath: Dockerfile.web
-    dockerContext: .
