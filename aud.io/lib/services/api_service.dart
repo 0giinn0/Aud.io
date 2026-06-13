@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/core/models/podcast.dart';
-import 'package:aud_io/core/models/artist.dart';
 
 class ApiService {
   // Override at build time: flutter build apk --dart-define=BASE_URL=https://your-custom-url
@@ -245,77 +244,6 @@ class ApiService {
     } catch (e, st) {
       debugPrint('aud.io API: feed episodes error: $e\n$st');
       return [];
-    }
-  }
-
-  // ===== ARTIST SEARCH (iTunes + Last.fm) =====
-
-  static Future<List<Artist>> searchArtists(String query, {int maxResults = 20}) async {
-    try {
-      final uri = Uri.parse('$_baseUrl/api/artists/search').replace(queryParameters: {
-        'q': query,
-        'max': maxResults.toString(),
-      });
-      debugPrint('aud.io API: GET $uri');
-
-      final client = http.Client();
-      final request = http.Request('GET', uri);
-      final streamed = await client.send(request).timeout(const Duration(seconds: 15));
-      final response = await http.Response.fromStream(streamed);
-
-      if (response.statusCode != 200) return [];
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final results = data['results'] as List? ?? [];
-
-      return results.map((r) => Artist.fromJson(r as Map<String, dynamic>)).toList();
-    } catch (e, st) {
-      debugPrint('aud.io API: artist search error: $e\n$st');
-      return [];
-    }
-  }
-
-  static Future<List<Artist>> getTrendingArtists({int maxResults = 20}) async {
-    try {
-      final uri = Uri.parse('$_baseUrl/api/artists/trending').replace(queryParameters: {
-        'max': maxResults.toString(),
-      });
-      debugPrint('aud.io API: GET $uri');
-
-      final client = http.Client();
-      final request = http.Request('GET', uri);
-      final streamed = await client.send(request).timeout(const Duration(seconds: 15));
-      final response = await http.Response.fromStream(streamed);
-
-      if (response.statusCode != 200) return [];
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final results = data['results'] as List? ?? [];
-
-      return results.map((r) => Artist.fromJson(r as Map<String, dynamic>)).toList();
-    } catch (e, st) {
-      debugPrint('aud.io API: trending artists error: $e\n$st');
-      return [];
-    }
-  }
-
-  static Future<Artist?> getArtistInfo(String artistName) async {
-    try {
-      final uri = Uri.parse('$_baseUrl/api/artists/$artistName/info');
-      debugPrint('aud.io API: GET $uri');
-
-      final client = http.Client();
-      final request = http.Request('GET', uri);
-      final streamed = await client.send(request).timeout(const Duration(seconds: 15));
-      final response = await http.Response.fromStream(streamed);
-
-      if (response.statusCode != 200) return null;
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      return Artist.fromJson(data);
-    } catch (e, st) {
-      debugPrint('aud.io API: artist info error: $e\n$st');
-      return null;
     }
   }
 }

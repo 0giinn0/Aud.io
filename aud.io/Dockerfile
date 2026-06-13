@@ -11,13 +11,15 @@ RUN pip3 install --no-cache-dir yt-dlp
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+# Copy server package files from server/ subdirectory
+COPY server/package.json server/package-lock.json ./
 RUN npm ci
 
+# Copy server source files
 COPY server/ .
 
 ENV NODE_ENV=production
 ENV PORT=10000
 
 EXPOSE 10000
-CMD ["node", "server/src/index.js"]
+CMD ["node", "src/index.js"]

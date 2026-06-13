@@ -6,8 +6,6 @@ import { searchFMA, getFMAStreamUrl, getFMATrackDetails } from '../services/fma.
 import { searchPodcasts, getPodcastDetails, getTrendingPodcasts, getEpisodesFromFeed } from '../services/podcast.js';
 import { getYouTubeAudioUrl, invalidateYouTubeUrl } from '../services/youtube.js';
 import { getSoundCloudStreamUrl } from '../services/soundcloud.js';
-import { searchArtists as searchArtistsItunes, getArtistTracks } from '../services/itunes.js';
-import { searchArtists as searchArtistsLastfm, getTrendingArtists, getArtistInfo } from '../services/lastfm.js';
 import { cacheMiddleware } from '../middleware/cache.js';
 import logger from '../utils/logger.js';
 import { execFile, spawn } from 'node:child_process';
@@ -405,74 +403,6 @@ router.get('/podcasts/feed', cacheMiddleware(300), async (req, res, next) => {
     next(err);
   }
 });
-
-// ===== ARTIST ROUTES (iTunes + Last.fm) =====
-
-// GET /api/artists/search?q=query&max=20
-router.get('/artists/search', cacheMiddleware(120), async (req, res, next) => {
-  try {
-    const query = (req.query.q || '').trim();
-    const max = Math.min(parseInt(req.query.max || '20', 10), 50);
-
-    if (!query) {
-      res.status(400).json({ error: true, message: 'Missing ?q=' });
-      return;
-    }
-
-    const results = [];
-    const errors = [];
-
-    // Try iTunes first
-    try {
-      const itunes = await searchArtistsItunes(query, max);
-      results.push(...itunes);
-    } catch (err) {
-      errors.push({ source: 'itunes', message: err.message });
-    }
-
-    // Try Last.fm second
-    try {
-      const lastfm = await searchArtistsLastfm(query, max);
-      results.push(...lastfm);
-    } catch (err) {
-      errors.push({ source: 'lastfm', message: err.message });
-    }
-
-    // Remove duplicates by name
-    const uniqueResults = Array.from(new Map(results.map((a) => [a.name.toLowerCase(), a])).values());
-    uniqueResults.sort(() => Math.random() - 0.5); // Shuffle
-
-    res.json({ results: uniqueResults, total: uniqueResults.length, errors: errors.length > 0 ? errors : undefined });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// GET /api/artists/trending?max=20
-router.get('/artists/trending', cacheMiddleware(600), async (req, res, next) => {
-  try {
-    const max = Math.min(parseInt(req.query.max || '20', 10), 50);
-    const results = await getTrendingArtists(max);
-    res.json({ results, total: results.length });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// GET /api/artists/:name/info
-router.get('/artists/:name/info', cacheMiddleware(300), async (req, res, next) => {
-  try {
-    const info = await getArtistInfo(req.params.name);
-    if (!info) {
-      res.status(404).json({ error: true, message: 'Artist not found' });
-      return;
-    }
-    res.json(info);
-  } catch (err) {
-    next(err);
-  }
-});
-
 
 router.post('/download', async (req, res, next) => {
   try {

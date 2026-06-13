@@ -5,6 +5,7 @@ import 'package:aud_io/core/models/podcast.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/api_service.dart';
 import 'package:aud_io/services/audio_handler.dart';
+import 'package:aud_io/services/download_service.dart';
 import 'package:aud_io/services/settings_service.dart';
 
 class PodcastPage extends StatefulWidget {
@@ -456,70 +457,121 @@ class _PodcastPageState extends State<PodcastPage> {
   }
 
   Widget _buildEpisodeCard(PodcastEpisode episode) {
-    return GestureDetector(
-      onTap: () => _playEpisode(episode),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AudIoTheme.surface,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: SizedBox(
-                width: 56,
-                height: 56,
-                child: episode.thumbnailUrl != null && (episode.thumbnailUrl ?? '').isNotEmpty
-                    ? Image.network(episode.thumbnailUrl!, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(color: AudIoTheme.surfaceVariant,
-                          child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 24)))
-                    : Container(color: AudIoTheme.surfaceVariant,
-                        child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 24)),
-              ),
+    final episodeId = 'podcast_${episode.audioUrl.hashCode}';
+    return Consumer<DownloadService>(
+      builder: (context, dl, _) {
+        final isDownloaded = dl.isDownloaded(episodeId);
+        final task = dl.tasks[episodeId];
+        final isDownloading = task != null && task.status == DownloadStatus.downloading;
+
+        return GestureDetector(
+          onTap: () => _playEpisode(episode),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AudIoTheme.surface,
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(episode.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: AudIoTheme.onSurface, fontSize: 12, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  if (episode.description != null && (episode.description ?? '').isNotEmpty)
-                    Text(episode.description!, maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: AudIoTheme.muted, fontSize: 10)),
-                  const SizedBox(height: 4),
-                  Row(
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: episode.thumbnailUrl != null && (episode.thumbnailUrl ?? '').isNotEmpty
+                        ? Image.network(episode.thumbnailUrl!, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(color: AudIoTheme.surfaceVariant,
+                              child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 24)))
+                        : Container(color: AudIoTheme.surfaceVariant,
+                            child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 24)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (episode.duration > 0) ...[
-                        Icon(Icons.access_time_rounded, size: 12, color: AudIoTheme.subtle),
-                        const SizedBox(width: 4),
-                        Text(episode.displayDuration,
-                          style: TextStyle(color: AudIoTheme.subtle, fontSize: 9)),
-                        const SizedBox(width: 12),
-                      ],
-                      if (episode.publishDate > 0)
-                        Text(episode.publishDateDisplay,
-                          style: TextStyle(color: AudIoTheme.subtle, fontSize: 9)),
+                      Text(episode.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: AudIoTheme.onSurface, fontSize: 12, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      if (episode.description != null && (episode.description ?? '').isNotEmpty)
+                        Text(episode.description!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: AudIoTheme.muted, fontSize: 10)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (episode.duration > 0) ...[
+                            Icon(Icons.access_time_rounded, size: 12, color: AudIoTheme.subtle),
+                            const SizedBox(width: 4),
+                            Text(episode.displayDuration,
+                              style: TextStyle(color: AudIoTheme.subtle, fontSize: 9)),
+                            const SizedBox(width: 12),
+                          ],
+                          if (episode.publishDate > 0)
+                            Text(episode.publishDateDisplay,
+                              style: TextStyle(color: AudIoTheme.subtle, fontSize: 9)),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                // Download button
+                GestureDetector(
+                  onTap: () {
+                    if (!isDownloading && !isDownloaded && episode.audioUrl != null) {
+                      dl.downloadPodcastEpisode(
+                        episodeId,
+                        episode.audioUrl!,
+                        title: episode.title,
+                        thumbnailUrl: episode.thumbnailUrl,
+                      );
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: isDownloaded
+                          ? AudIoTheme.primary.withAlpha(30)
+                          : isDownloading
+                              ? Colors.orange.withAlpha(30)
+                              : AudIoTheme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: isDownloading
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              value: task?.progress,
+                              color: Colors.orange,
+                            ),
+                          )
+                        : Icon(
+                            isDownloaded ? Icons.download_done_rounded : Icons.download_rounded,
+                            size: 20,
+                            color: isDownloaded ? AudIoTheme.primary : AudIoTheme.muted,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Play button
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AudIoTheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.play_arrow_rounded, size: 20, color: AudIoTheme.muted),
+                ),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AudIoTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.play_arrow_rounded, size: 20, color: AudIoTheme.muted),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
