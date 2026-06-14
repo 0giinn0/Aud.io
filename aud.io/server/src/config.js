@@ -6,7 +6,7 @@ export default {
   nodeEnv: process.env.NODE_ENV || 'development',
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
-    max: parseInt(process.env.RATE_LIMIT_MAX || '30', 10),
+    max: parseInt(process.env.RATE_LIMIT_MAX || '60', 10),
   },
   cache: {
     ttl: parseInt(process.env.CACHE_TTL || '300', 10),

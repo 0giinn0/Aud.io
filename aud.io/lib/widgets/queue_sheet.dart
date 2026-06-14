@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/audio_handler.dart';
+import 'package:aud_io/widgets/proxied_image.dart';
 
 /// Shows the current play queue as draggable cards. Reordering a card moves
 /// the track in the player queue; this works for music tracks, podcast
@@ -124,11 +125,8 @@ class _QueueCard extends StatelessWidget {
           child: Row(
             children: [
               if (track.thumbnailUrl != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(track.thumbnailUrl!, width: 44, height: 44, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _placeholder()),
-                )
+                ProxiedImage(url: track.thumbnailUrl!, width: 44, height: 44, borderRadius: BorderRadius.circular(8),
+                  errorBuilder: (_, __, ___) => _placeholder())
               else
                 _placeholder(),
               const SizedBox(width: 12),

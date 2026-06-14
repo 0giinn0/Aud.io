@@ -3,6 +3,7 @@ import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:provider/provider.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/theme/witty_strings.dart';
@@ -10,12 +11,11 @@ import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/download_service.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
+import 'package:aud_io/services/lyrics_service.dart';
 import 'package:aud_io/widgets/track_context_sheet.dart';
 import 'package:aud_io/widgets/queue_sheet.dart';
+import 'package:aud_io/widgets/proxied_image.dart';
 
-/// Bauhaus/Swiss-poster player: red canvas, giant black vinyl circle,
-/// oversized time numerals, circular black play button. Layout follows the
-/// golden ratio — the hero takes ~61.8% of the body, controls the rest.
 class NowPlayingPage extends StatefulWidget {
   const NowPlayingPage({super.key});
 
@@ -28,8 +28,11 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   StreamSubscription? _positionSub;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
-  double _sliderValue = 0;
   late final AnimationController _spinController;
+
+  LyricsResult? _lyrics;
+  bool _loadingLyrics = false;
+  bool _showLyrics = false;
 
   @override
   void initState() {
@@ -42,11 +45,26 @@ class _NowPlayingPageState extends State<NowPlayingPage>
         setState(() {
           _position = p.position;
           _duration = p.duration;
-          _sliderValue = _duration.inMilliseconds > 0
-              ? _position.inMilliseconds / _duration.inMilliseconds
-              : 0.0;
         });
       }
+    });
+    _fetchLyrics();
+  }
+
+  void _fetchLyrics() {
+    final track = context.read<AppAudioHandler>().currentTrack;
+    if (track == null) return;
+    _loadingLyrics = true;
+    LyricsService.fetchLyrics(track.title, track.artistDisplay, duration: track.duration)
+        .then((result) {
+      if (mounted) {
+        setState(() {
+          _lyrics = result;
+          _loadingLyrics = false;
+        });
+      }
+    }).catchError((_) {
+      if (mounted) setState(() => _loadingLyrics = false);
     });
   }
 
@@ -61,6 +79,19 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     final m = d.inMinutes;
     final s = d.inSeconds.remainder(60);
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  String? _currentLyricLine() {
+    if (_lyrics?.syncedLines == null || _lyrics!.syncedLines!.isEmpty) return null;
+    final lines = _lyrics!.syncedLines!;
+    int? found;
+    for (var i = lines.length - 1; i >= 0; i--) {
+      if (_position >= lines[i].timestamp) {
+        found = i;
+        break;
+      }
+    }
+    return found != null ? lines[found].text : null;
   }
 
   @override
@@ -94,8 +125,6 @@ class _NowPlayingPageState extends State<NowPlayingPage>
       ),
     );
   }
-
-  // ── Hero: headline + giant vinyl circle (major golden section) ──
 
   Widget _buildHero(AppAudioHandler handler, Track track) {
     return Padding(
@@ -152,7 +181,6 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                             );
                           },
                         ),
-                        // Small offset circle, straight from the reference.
                         Positioned(
                           left: 0,
                           bottom: size * 0.13,
@@ -191,10 +219,9 @@ class _NowPlayingPageState extends State<NowPlayingPage>
       padding: EdgeInsets.all(ringWidth),
       child: ClipOval(
         child: track.thumbnailUrl != null
-            ? Image.network(
-                track.thumbnailUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildVinylLabel(),
+            ? ProxiedImage(url: track.thumbnailUrl!, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(color: AudIoTheme.surface,
+                    child: Icon(Icons.music_note, size: 48, color: AudIoTheme.muted)),
               )
             : _buildVinylLabel(),
       ),
@@ -217,8 +244,6 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     );
   }
 
-  // ── Controls: title, huge numerals, progress, circular buttons ──
-
   Widget _buildControls(AppAudioHandler handler, Track track) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -226,190 +251,250 @@ class _NowPlayingPageState extends State<NowPlayingPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Caption + giant elapsed numeral, like "Maintenance        14".
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(track.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                            color: AudIoTheme.ink,
-                          )),
-                      const SizedBox(height: AudIoTheme.s1),
-                      Text(
-                        '${track.artistDisplay} · ${track.sourceLabel.toLowerCase()}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AudIoTheme.ink.withValues(alpha: 0.55),
-                        ),
-                      ),
-                      const SizedBox(height: AudIoTheme.s1),
-                      Text(
-                        WittyStrings.randomFrom(WittyStrings.nowPlayingJokes),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontStyle: FontStyle.italic,
-                          color: AudIoTheme.ink.withValues(alpha: 0.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AudIoTheme.s3),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    _fmt(_position),
-                    style: const TextStyle(
-                      fontSize: 55,
-                      fontWeight: FontWeight.w800,
-                      height: 0.9,
-                      letterSpacing: -2,
-                      color: AudIoTheme.ink,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: _showLyrics && _lyrics != null
+                ? _buildLyricsPanel()
+                : _buildTrackInfo(handler, track),
           ),
           const SizedBox(height: AudIoTheme.s2),
-
-          // Thin black progress line.
-          SliderTheme(
-            data: SliderThemeData(
-              trackHeight: 2,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 13),
-              activeTrackColor: AudIoTheme.ink,
-              inactiveTrackColor: AudIoTheme.ink.withValues(alpha: 0.25),
-              thumbColor: AudIoTheme.ink,
-              overlayColor: AudIoTheme.ink.withValues(alpha: 0.1),
-            ),
-            child: Slider(
-              value: _sliderValue.clamp(0.0, 1.0),
-              onChanged: (v) {
-                final ms = (v * _duration.inMilliseconds).round();
-                context
-                    .read<AppAudioHandler>()
-                    .seek(Duration(milliseconds: ms));
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _caption(_fmt(_position)),
-                _caption(_fmt(_duration)),
-              ],
-            ),
-          ),
+          _buildProgressBar(handler),
           const SizedBox(height: AudIoTheme.s3),
-
-          // Control row: black circle play button + flat black icons + dots.
-          Row(
-            children: [
-              StreamBuilder<PlayerState>(
-                stream: handler.player.playerStateStream,
-                builder: (_, snap) {
-                  final playing = snap.data?.playing ?? false;
-                  return GestureDetector(
-                    onTap: () => playing ? handler.pause() : handler.play(),
-                    child: Container(
-                      width: 76,
-                      height: 76,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AudIoTheme.ink,
-                      ),
-                      child: Icon(
-                        playing
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        size: 34,
-                        color: AudIoTheme.red,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: AudIoTheme.s3),
-              _flatButton(Icons.skip_previous_rounded, 28,
-                  onTap: () => handler.skipToPrevious()),
-              _flatButton(Icons.skip_next_rounded, 28,
-                  onTap: () => handler.skipToNext()),
-              StreamBuilder<AudioServiceShuffleMode>(
-                stream: handler.playbackState.map((s) => s.shuffleMode),
-                builder: (_, snap) {
-                  final on = snap.data == AudioServiceShuffleMode.all;
-                  return _flatButton(Icons.shuffle_rounded, 21,
-                      dimmed: !on, onTap: () => handler.toggleShuffle());
-                },
-              ),
-              StreamBuilder<AudioServiceRepeatMode>(
-                stream: handler.playbackState.map((s) => s.repeatMode),
-                builder: (_, snap) {
-                  final mode = snap.data ?? AudioServiceRepeatMode.none;
-                  return _flatButton(
-                      mode == AudioServiceRepeatMode.one
-                          ? Icons.repeat_one_rounded
-                          : Icons.repeat_rounded,
-                      21,
-                      dimmed: mode == AudioServiceRepeatMode.none,
-                      onTap: () => handler.cycleRepeatMode());
-                },
-              ),
-              const Spacer(),
-              Consumer<LocalPlaylistService>(
-                builder: (_, favService, __) {
-                  final isFav = favService.isFavorite(track.id);
-                  return _flatButton(
-                      isFav
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      21,
-                      dimmed: !isFav,
-                      onTap: () => favService.toggleFavorite(track));
-                },
-              ),
-              _downloadButton(track),
-              _flatButton(Icons.queue_music_rounded, 22,
-                  onTap: () => showQueueSheet(context)),
-              _flatButton(Icons.more_horiz_rounded, 24,
-                  onTap: () => showTrackContextMenu(context, track)),
-            ],
-          ),
+          _buildControlButtons(handler, track),
         ],
       ),
     );
   }
 
-  Widget _caption(String text) {
-    return Text(text,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-          color: AudIoTheme.ink.withValues(alpha: 0.55),
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ));
+  Widget _buildTrackInfo(AppAudioHandler handler, Track track) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Lyrics toggle button
+              if (_lyrics != null)
+                GestureDetector(
+                  onTap: () => setState(() => _showLyrics = !_showLyrics),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AudIoTheme.ink.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lyrics_rounded, size: 12, color: AudIoTheme.ink),
+                        const SizedBox(width: 4),
+                        Text('Lyrics',
+                          style: TextStyle(
+                            fontSize: 8, fontWeight: FontWeight.w600, color: AudIoTheme.ink)),
+                      ],
+                    ),
+                  ),
+                ),
+              Text(track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: AudIoTheme.ink,
+                  )),
+              const SizedBox(height: AudIoTheme.s1),
+              Text(
+                '${track.artistDisplay} · ${track.sourceLabel.toLowerCase()}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AudIoTheme.ink.withValues(alpha: 0.55),
+                ),
+              ),
+              const SizedBox(height: AudIoTheme.s1),
+              Text(
+                WittyStrings.randomFrom(WittyStrings.nowPlayingJokes),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontStyle: FontStyle.italic,
+                  color: AudIoTheme.ink.withValues(alpha: 0.4),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AudIoTheme.s3),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _fmt(_position),
+            style: const TextStyle(
+              fontSize: 55,
+              fontWeight: FontWeight.w800,
+              height: 0.9,
+              letterSpacing: -2,
+              color: AudIoTheme.ink,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLyricsPanel() {
+    if (_loadingLyrics) {
+      return const Center(child: CircularProgressIndicator(color: AudIoTheme.ink));
+    }
+    final lines = _lyrics!.syncedLines;
+    if (lines != null && lines.isNotEmpty) {
+      final currentLine = _currentLyricLine();
+      return GestureDetector(
+        onTap: () => setState(() => _showLyrics = false),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: lines.map((line) {
+            final isCurrent = line.text == currentLine;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text(
+                line.text,
+                style: TextStyle(
+                  fontSize: isCurrent ? 15 : 12,
+                  fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w400,
+                  color: isCurrent
+                      ? AudIoTheme.ink
+                      : AudIoTheme.ink.withValues(alpha: 0.5),
+                  height: 1.4,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      );
+    }
+    // Plain text lyrics
+    return GestureDetector(
+      onTap: () => setState(() => _showLyrics = false),
+      child: SingleChildScrollView(
+        child: Text(
+          _lyrics!.plainText ?? '',
+          style: TextStyle(
+            fontSize: 13,
+            color: AudIoTheme.ink.withValues(alpha: 0.7),
+            height: 1.6,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressBar(AppAudioHandler handler) {
+    return Column(
+      children: [
+        ProgressBar(
+          progress: _position,
+          buffered: handler.player.bufferedPosition,
+          total: _duration,
+          onSeek: (pos) => handler.seek(pos),
+          barHeight: 3,
+          thumbRadius: 6,
+          baseBarColor: AudIoTheme.ink.withValues(alpha: 0.25),
+          bufferedBarColor: AudIoTheme.ink.withValues(alpha: 0.4),
+          progressBarColor: AudIoTheme.ink,
+          thumbColor: AudIoTheme.ink,
+          timeLabelTextStyle: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AudIoTheme.ink.withValues(alpha: 0.55),
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildControlButtons(AppAudioHandler handler, Track track) {
+    return Row(
+      children: [
+        StreamBuilder<PlayerState>(
+          stream: handler.player.playerStateStream,
+          builder: (_, snap) {
+            final playing = snap.data?.playing ?? false;
+            return GestureDetector(
+              onTap: () => playing ? handler.pause() : handler.play(),
+              child: Container(
+                width: 76,
+                height: 76,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AudIoTheme.ink,
+                ),
+                child: Icon(
+                  playing
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  size: 34,
+                  color: AudIoTheme.red,
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(width: AudIoTheme.s3),
+        _flatButton(Icons.skip_previous_rounded, 28,
+            onTap: () => handler.skipToPrevious()),
+        _flatButton(Icons.skip_next_rounded, 28,
+            onTap: () => handler.skipToNext()),
+        StreamBuilder<AudioServiceShuffleMode>(
+          stream: handler.playbackState.map((s) => s.shuffleMode),
+          builder: (_, snap) {
+            final on = snap.data == AudioServiceShuffleMode.all;
+            return _flatButton(Icons.shuffle_rounded, 21,
+                dimmed: !on, onTap: () => handler.toggleShuffle());
+          },
+        ),
+        StreamBuilder<AudioServiceRepeatMode>(
+          stream: handler.playbackState.map((s) => s.repeatMode),
+          builder: (_, snap) {
+            final mode = snap.data ?? AudioServiceRepeatMode.none;
+            return _flatButton(
+                mode == AudioServiceRepeatMode.one
+                    ? Icons.repeat_one_rounded
+                    : Icons.repeat_rounded,
+                21,
+                dimmed: mode == AudioServiceRepeatMode.none,
+                onTap: () => handler.cycleRepeatMode());
+          },
+        ),
+        const Spacer(),
+        Consumer<LocalPlaylistService>(
+          builder: (_, favService, __) {
+            final isFav = favService.isFavorite(track.id);
+            return _flatButton(
+                isFav
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                21,
+                dimmed: !isFav,
+                onTap: () => favService.toggleFavorite(track));
+          },
+        ),
+        _downloadButton(track),
+        _flatButton(Icons.queue_music_rounded, 22,
+            onTap: () => showQueueSheet(context)),
+        _flatButton(Icons.more_horiz_rounded, 24,
+            onTap: () => showTrackContextMenu(context, track)),
+      ],
+    );
   }
 
   Widget _flatButton(IconData icon, double size,

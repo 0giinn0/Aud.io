@@ -1,18 +1,16 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/models/track.dart';
+import 'package:aud_io/core/models/playlist_model.dart';
 import 'package:aud_io/services/audio_handler.dart';
-import 'package:aud_io/services/local_file_scanner.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
 import 'package:aud_io/services/settings_service.dart';
-import 'package:aud_io/services/web_audio_helper.dart';
 import 'package:aud_io/widgets/track_context_sheet.dart';
+import 'package:aud_io/widgets/proxied_image.dart';
 
 class ProfilePage extends StatelessWidget {
-  final bool supabaseAvailable;
-  const ProfilePage({super.key, this.supabaseAvailable = false});
+  const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -238,14 +236,14 @@ class ProfilePage extends StatelessWidget {
 }
 
 class _PlaylistBentoTile extends StatelessWidget {
-  final Playlist playlist;
+  final PlaylistModel playlist;
   const _PlaylistBentoTile({required this.playlist});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(
-        builder: (_) => _PlaylistDetailPage(playlistId: playlist.id),
+        builder: (_) => _PlaylistDetailPage(playlistId: '${playlist.id}'),
       )),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
@@ -263,11 +261,8 @@ class _PlaylistBentoTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: playlist.tracks.isNotEmpty && playlist.tracks.first.thumbnailUrl != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.network(playlist.tracks.first.thumbnailUrl!, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(Icons.queue_music_rounded, size: 24, color: AudIoTheme.subtle)),
-                    )
+                  ? ProxiedImage(url: playlist.tracks.first.thumbnailUrl!, width: 56, height: 56, borderRadius: BorderRadius.circular(10),
+                    errorBuilder: (_, __, ___) => Icon(Icons.queue_music_rounded, size: 24, color: AudIoTheme.subtle))
                   : Icon(Icons.queue_music_rounded, size: 24, color: AudIoTheme.subtle),
             ),
             const SizedBox(width: 14),
@@ -313,7 +308,7 @@ class _PlaylistDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<LocalPlaylistService>(
       builder: (context, service, _) {
-        final idx = service.playlists.indexWhere((p) => p.id == playlistId);
+        final idx = service.playlists.indexWhere((p) => '${p.id}' == playlistId);
         if (idx == -1) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) Navigator.of(context).pop();
@@ -479,13 +474,10 @@ class _LikedSongsPage extends StatelessWidget {
                           child: Row(
                             children: [
                               if (track.thumbnailUrl != null)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(track.thumbnailUrl!, width: 44, height: 44, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
-                                      decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
-                                      child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle))),
-                                )
+                                ProxiedImage(url: track.thumbnailUrl!, width: 44, height: 44, borderRadius: BorderRadius.circular(8),
+                                  errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
+                                    decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+                                    child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle)))
                               else
                                 Container(width: 44, height: 44,
                                   decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
@@ -558,13 +550,10 @@ class _PlaylistTrackTile extends StatelessWidget {
               child: Text('${index + 1}', style: TextStyle(fontSize: 11, color: AudIoTheme.subtle)),
             ),
             if (track.thumbnailUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(track.thumbnailUrl!, width: 44, height: 44, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
-                    decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
-                    child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle))),
-              )
+              ProxiedImage(url: track.thumbnailUrl!, width: 44, height: 44, borderRadius: BorderRadius.circular(8),
+                errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
+                  decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+                  child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle)))
             else
               Container(width: 44, height: 44,
                 decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
