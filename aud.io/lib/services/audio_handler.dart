@@ -6,12 +6,14 @@ import 'package:audio_session/audio_session.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/api_service.dart';
+import 'package:aud_io/services/youtube_explode_service.dart';
 
 class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
   final AudioPlayer _player = AudioPlayer();
   List<Track> _queue = [];
   int? _currentIndex;
   bool _resumeOnInterruptionEnd = false;
+  int _retryCount = 0;
 
   AppAudioHandler() {
     _initSession();
@@ -117,13 +119,21 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
     });
   }
 
+  Uri? _proxiedArtUri(String? thumbnailUrl) {
+    if (thumbnailUrl == null || thumbnailUrl.isEmpty) return null;
+    if (kIsWeb) {
+      return Uri.parse('/api/proxy-image?url=${Uri.encodeComponent(thumbnailUrl)}');
+    }
+    return Uri.tryParse(thumbnailUrl);
+  }
+
   MediaItem _toMediaItem(Track track) {
     return MediaItem(
       id: track.id,
       title: track.title,
       artist: track.artistDisplay,
       album: '${track.sourceLabel} · aud.io',
-      artUri: track.thumbnailUrl != null ? Uri.tryParse(track.thumbnailUrl!) : null,
+      artUri: _proxiedArtUri(track.thumbnailUrl),
       duration: Duration(seconds: track.duration),
     );
   }
@@ -165,6 +175,7 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
 
   @override
   Future<void> stop() async {
+    _retryCount = 0;
     await _player.stop();
     _currentIndex = null;
     mediaItem.add(null);
@@ -219,44 +230,49 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
         }
         return Uri.file(path);
       case TrackSource.youtube:
-        // Always stream through the server proxy: googlevideo URLs are
-        // IP-bound to the server, and the proxy URL needs no round trip
-        // before playback can start.
-        return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
+        // Mobile: extract direct googlevideo URL via InnerTube (no server).
+        // Web: Worker proxies InnerTube + audio bytes at /api/yt-proxy.
+        if (kIsWeb) {
+          return Uri.parse('/api/yt-proxy?videoId=${track.id}');
+        }
+        final cached = track.audioUrl;
+        final directUrl = cached ?? await YouTubeExplodeService.getAudioUrl(track.id);
+        if (directUrl != null) {
+          if (cached == null) track.audioUrl = directUrl;
+          return Uri.parse(directUrl);
+        }
+        return null;
       case TrackSource.podcast:
         final purl = track.audioUrl;
         if (purl == null) return null;
-        // Podcast hosts rarely send CORS headers, so on web go through the
-        // generic proxy; native can hit the URL directly.
-        return Uri.parse(kIsWeb ? ApiService.proxyDirectUrl(purl) : purl);
-      default:
-        // On web, route through the proxy too: it adds the CORS headers the
-        // browser requires, follows upstream redirects server-side, and serves
-        // progressive bytes with Range support. Native plays the direct
-        // upstream URL (no CORS limits) to save a hop.
+        return Uri.parse(kIsWeb ? '/api/proxy?url=${Uri.encodeComponent(purl)}' : purl);
+      case TrackSource.soundcloud:
+        // Mobile: resolve SoundCloud stream URL directly.
+        // Web: Worker resolves the stream URL.
         if (kIsWeb) {
-          return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
+          return Uri.parse('/api/stream/${track.id}/audio?source=soundcloud');
+        }
+        final url = track.audioUrl ??= await ApiService.getStreamUrl(track.id, track.source);
+        return url != null ? Uri.parse(url) : null;
+      default:
+        if (kIsWeb) {
+          return Uri.parse(ApiService.proxyDirectUrl(track.audioUrl ?? '/api/proxy'));
         }
         final url = track.audioUrl ??= await ApiService.getStreamUrl(track.id, track.source);
         return url != null ? Uri.parse(url) : null;
     }
   }
 
-  /// Warm up the next track so skips start instantly: for YouTube this
-  /// pre-extracts the stream URL into the server cache; for SoundCloud/FMA
-  /// it stores the resolved URL on the track.
+  /// Pre-warm the next track — only meaningful for YouTube on mobile
+  /// where InnerTube extraction can be cached. Web delegates to Worker.
   void _prefetchNext() {
     final idx = _currentIndex;
     if (idx == null || idx + 1 >= _queue.length) return;
     final next = _queue[idx + 1];
-    if (next.source == TrackSource.local ||
-        next.source == TrackSource.fake ||
-        next.source == TrackSource.podcast) return;
-    if (next.source != TrackSource.youtube && next.audioUrl != null) return;
-    ApiService.getStreamUrl(next.id, next.source).then((url) {
-      if (next.source != TrackSource.youtube && url != null) {
-        next.audioUrl = url;
-      }
+    if (next.source != TrackSource.youtube || kIsWeb) return;
+
+    YouTubeExplodeService.getAudioUrl(next.id).then((url) {
+      if (url != null) next.audioUrl = url;
     }).catchError((_) {});
   }
 
@@ -271,16 +287,29 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
       final uri = await _resolvePlaybackUri(track);
       if (uri == null) {
         debugPrint('aud.io: no stream URL for ${track.id}');
+        _retryCount++;
+        if (_retryCount >= _queue.length) {
+          debugPrint('aud.io: all tracks exhausted, stopping');
+          await stop();
+          return;
+        }
         skipToNext();
         return;
       }
 
       await _player.setAudioSource(AudioSource.uri(uri));
+      _retryCount = 0;
       notifyListeners();
       await _player.play();
       _prefetchNext();
     } catch (e) {
       debugPrint('aud.io: failed to load: $e');
+      _retryCount++;
+      if (_retryCount >= _queue.length) {
+        debugPrint('aud.io: all tracks exhausted, stopping');
+        await stop();
+        return;
+      }
       skipToNext();
     }
   }
@@ -288,10 +317,12 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
   @override
   Future<void> skipToQueueItem(int index) async {
     if (index < 0 || index >= _queue.length) return;
+    _retryCount = 0;
     await _loadTrack(index);
   }
 
   void setQueue(List<Track> tracks, {int? startIndex}) {
+    _retryCount = 0;
     _queue = List.from(tracks);
     _currentIndex = startIndex ?? 0;
     _broadcastQueue();
@@ -349,7 +380,7 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
         title: title ?? 'Podcast',
         artist: artist ?? 'Podcast',
         album: 'Podcast · aud.io',
-        artUri: artUri != null ? Uri.tryParse(artUri) : null,
+        artUri: _proxiedArtUri(artUri),
         duration: durationMs != null ? Duration(milliseconds: durationMs) : null,
       ));
 

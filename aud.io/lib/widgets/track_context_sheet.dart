@@ -4,7 +4,7 @@ import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
-import 'package:aud_io/widgets/playlist_selector_sheet.dart';
+import 'package:aud_io/widgets/proxied_image.dart';
 
 void showTrackContextMenu(BuildContext context, Track track) {
   final handler = context.read<AppAudioHandler>();
@@ -33,10 +33,6 @@ void showTrackContextMenu(BuildContext context, Track track) {
           ),
         );
       },
-      onAddToPlaylist: () {
-        Navigator.pop(context);
-        showPlaylistSelector(context, track);
-      },
       onToggleFavorite: () {
         Navigator.pop(context);
         playlists.toggleFavorite(track);
@@ -60,7 +56,6 @@ class _TrackContextSheet extends StatelessWidget {
   final bool isFavorite;
   final VoidCallback onPlay;
   final VoidCallback onAddToQueue;
-  final VoidCallback onAddToPlaylist;
   final VoidCallback onToggleFavorite;
 
   const _TrackContextSheet({
@@ -68,7 +63,6 @@ class _TrackContextSheet extends StatelessWidget {
     required this.isFavorite,
     required this.onPlay,
     required this.onAddToQueue,
-    required this.onAddToPlaylist,
     required this.onToggleFavorite,
   });
 
@@ -84,17 +78,11 @@ class _TrackContextSheet extends StatelessWidget {
             child: Row(
               children: [
                 if (track.thumbnailUrl != null)
-                  ClipRRect(
+                  ProxiedImage(url: track.thumbnailUrl!, width: 40, height: 40,
                     borderRadius: BorderRadius.circular(2),
-                    child: Image.network(
-                      track.thumbnailUrl!,
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 40, height: 40, color: AudIoTheme.surfaceVariant,
-                        child: Icon(Icons.music_note, size: 20, color: AudIoTheme.muted),
-                      ),
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 40, height: 40, color: AudIoTheme.surfaceVariant,
+                      child: Icon(Icons.music_note, size: 20, color: AudIoTheme.muted),
                     ),
                   )
                 else
@@ -120,7 +108,6 @@ class _TrackContextSheet extends StatelessWidget {
           ),
           _ActionTile(icon: Icons.play_arrow_rounded, label: 'Play', onTap: onPlay),
           _ActionTile(icon: Icons.queue_music_rounded, label: 'Add to queue', onTap: onAddToQueue),
-          _ActionTile(icon: Icons.playlist_add_rounded, label: 'Add to playlist', onTap: onAddToPlaylist),
           _ActionTile(
             icon: isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
             label: isFavorite ? 'Remove from favorites' : 'Add to favorites',

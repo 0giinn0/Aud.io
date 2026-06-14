@@ -8,7 +8,6 @@ import 'package:aud_io/services/settings_service.dart';
 import 'package:aud_io/services/download_service.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
 import 'package:aud_io/services/api_service.dart';
-import 'package:aud_io/services/accreditation_service.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -53,57 +52,8 @@ class SettingsPage extends StatelessWidget {
           _buildLibraryCard(context),
           const SizedBox(height: 12),
 
-          // Row 5: Source accreditation (download PDF)
-          _buildCreditsCard(context),
-          const SizedBox(height: 12),
-
-          // Row 6: Live server status
+          // Row 5: Live server status
           const _ServerStatusCard(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCreditsCard(BuildContext context) {
-    return _BentoCard(
-      height: 92,
-      gradient: [AudIoTheme.surface, AudIoTheme.surfaceVariant],
-      onTap: () async {
-        try {
-          await AccreditationService.exportCredits();
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Could not export credits: $e')));
-          }
-        }
-      },
-      child: Row(
-        children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: AudIoTheme.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.workspace_premium_rounded, size: 20, color: AudIoTheme.primary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Source credits', style: TextStyle(
-                  fontSize: 13, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
-                Text('Download accreditation PDF', style: TextStyle(
-                  fontSize: 10, color: AudIoTheme.subtle)),
-              ],
-            ),
-          ),
-          Icon(Icons.picture_as_pdf_rounded, size: 20, color: AudIoTheme.subtle),
-          const SizedBox(width: 4),
-          Icon(Icons.download_rounded, size: 18, color: AudIoTheme.primary),
         ],
       ),
     );
@@ -177,7 +127,7 @@ class SettingsPage extends StatelessWidget {
     if (confirmed == true && context.mounted) {
       final lib = context.read<LocalPlaylistService>();
       for (final p in List.of(lib.playlists)) {
-        lib.deletePlaylist(p.id);
+        lib.deletePlaylist('${p.id}');
       }
       for (final t in List.of(lib.favorites)) {
         lib.toggleFavorite(t);
@@ -189,6 +139,8 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
+  // TODO: re-enable this when theme selection is needed
+  // ignore: unused_element
   Widget _buildThemeCard(BuildContext context) {
     return Consumer<SettingsService>(
       builder: (_, s, __) => _BentoCard(
@@ -547,3 +499,5 @@ class _BentoCard extends StatelessWidget {
     );
   }
 }
+
+

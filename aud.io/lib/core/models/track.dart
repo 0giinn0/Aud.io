@@ -40,6 +40,26 @@ class Track {
     );
   }
 
+  factory Track.fromApiJson(Map<String, dynamic> json) {
+    final source = switch ((json['source'] as String? ?? '').toLowerCase()) {
+      'youtube' || 'yt' => TrackSource.youtube,
+      'soundcloud' || 'sc' => TrackSource.soundcloud,
+      'podcast' || 'pod' => TrackSource.podcast,
+      'local' => TrackSource.local,
+      _ => TrackSource.soundcloud,
+    };
+    return Track(
+      id: json['id']?.toString() ?? '',
+      title: json['title'] ?? json['name'] ?? '',
+      artist: json['artist'] ?? json['artistDisplay'],
+      album: json['album'],
+      thumbnailUrl: json['artworkUrl'] ?? json['thumbnailUrl'] ?? json['thumbnail'],
+      audioUrl: json['audioUrl'] ?? json['url'],
+      duration: json['duration'] is int ? json['duration'] : (int.tryParse(json['duration']?.toString() ?? '') ?? 0),
+      source: source,
+    );
+  }
+
   factory Track.fromJson(Map<String, dynamic> json) => Track(
         id: json['id'] ?? '',
         title: json['title'] ?? '',

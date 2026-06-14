@@ -6,6 +6,7 @@ import 'package:aud_io/core/theme/witty_strings.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/download_service.dart';
+import 'package:aud_io/widgets/proxied_image.dart';
 
 /// Bauhaus mini player: ink bar with hard edges, circular art, red circle
 /// play button, thin red progress line along the top.
@@ -64,9 +65,7 @@ class MiniPlayer extends StatelessWidget {
                             width: 34,
                             height: 34,
                             child: track.thumbnailUrl != null
-                                ? Image.network(
-                                    track.thumbnailUrl!,
-                                    fit: BoxFit.cover,
+                                ? ProxiedImage(url: track.thumbnailUrl!, width: 34, height: 34,
                                     errorBuilder: (_, __, ___) => _artFallback(),
                                   )
                                 : _artFallback(),

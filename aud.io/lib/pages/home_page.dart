@@ -5,9 +5,10 @@ import 'package:aud_io/core/theme/witty_strings.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/music_library.dart';
 import 'package:aud_io/services/audio_handler.dart';
-import 'package:aud_io/services/local_playlist_service.dart';
+import 'package:aud_io/services/youtube_music_service.dart';
 import 'package:aud_io/pages/now_playing_page.dart';
 import 'package:aud_io/widgets/track_context_sheet.dart';
+import 'package:aud_io/widgets/proxied_image.dart';
 
 class HomePage extends StatefulWidget {
   final VoidCallback? onNavigateToLibrary;
@@ -43,8 +44,18 @@ class _HomePageState extends State<HomePage> {
     setState(() => _isSearching = true);
     _focusNode.unfocus();
 
-    final lib = context.read<MusicLibrary>();
-    final results = await lib.searchAll(query.trim());
+    List<Track> results;
+    try {
+      results = await YouTubeMusicService.searchAll(query.trim());
+    } catch (_) {
+      results = [];
+    }
+    if (results.isEmpty) {
+      try {
+        final lib = context.read<MusicLibrary>();
+        results = await lib.searchAll(query.trim());
+      } catch (_) {}
+    }
 
     setState(() {
       _searchResults = results;
@@ -247,7 +258,7 @@ class _HomePageState extends State<HomePage> {
                 width: 48, height: 48,
                 color: AudIoTheme.surfaceVariant,
                 child: track.thumbnailUrl != null
-                    ? Image.network(track.thumbnailUrl!, fit: BoxFit.cover,
+                    ? ProxiedImage(url: track.thumbnailUrl!, width: 48, height: 48,
                         errorBuilder: (_, __, ___) =>
                             Icon(Icons.music_note_rounded, size: 22, color: AudIoTheme.subtle))
                     : Icon(Icons.music_note_rounded, size: 22, color: AudIoTheme.subtle),
@@ -395,13 +406,10 @@ class _HomePageState extends State<HomePage> {
                 const Spacer(),
                 if (track != null) ...[
                   if (track.thumbnailUrl != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(track.thumbnailUrl!, width: 56, height: 56, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 56, height: 56, color: AudIoTheme.surfaceVariant,
-                          child: Icon(Icons.music_note_rounded, size: 24, color: AudIoTheme.subtle))),
-                    )
+                    ProxiedImage(url: track.thumbnailUrl!, width: 56, height: 56, borderRadius: BorderRadius.circular(8),
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 56, height: 56, color: AudIoTheme.surfaceVariant,
+                        child: Icon(Icons.music_note_rounded, size: 24, color: AudIoTheme.subtle)))
                   else
                     Container(
                       width: 56, height: 56,
@@ -495,46 +503,60 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildGenreTile(Map<String, dynamic> genre, {required bool isBig}) {
+    final color = genre['color'] as Color;
+    final icon = genre['icon'] as IconData;
+    final name = genre['name'] as String;
+
     return GestureDetector(
       onTap: () {
-        _searchController.text = genre['name'] as String;
-        _search(genre['name'] as String);
+        _searchController.text = name;
+        _search(name);
       },
       child: Container(
-        height: isBig ? 100 : 100,
+        height: isBig ? 120 : 96,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              (genre['color'] as Color).withValues(alpha: 0.15),
-              (genre['color'] as Color).withValues(alpha: 0.05),
+              color.withAlpha(60),
+              color.withAlpha(20),
+              AudIoTheme.surface,
             ],
+            stops: const [0.0, 0.5, 1.0],
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: (genre['color'] as Color).withValues(alpha: 0.2),
-            width: 1,
-          ),
+          border: Border.all(color: color.withAlpha(35), width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: isBig ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
           children: [
-            Icon(genre['icon'] as IconData, size: isBig ? 24 : 20, color: genre['color'] as Color),
-            Flexible(
-              child: Text(
-                genre['name'] as String,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: isBig ? 14 : 12,
-                  color: genre['color'] as Color,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                ),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: color.withAlpha(30),
+                borderRadius: BorderRadius.circular(10),
               ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name.toUpperCase(), style: TextStyle(
+                  fontSize: isBig ? 13 : 11,
+                  color: AudIoTheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                )),
+                const SizedBox(height: 2),
+                Text('Browse ${name.toLowerCase()}', style: TextStyle(
+                  fontSize: 9,
+                  color: AudIoTheme.subtle,
+                )),
+              ],
             ),
           ],
         ),
