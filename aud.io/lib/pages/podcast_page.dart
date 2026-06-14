@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/models/podcast.dart';
@@ -596,7 +596,7 @@ class _PodcastPageState extends State<PodcastPage> {
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              value: task?.progress,
+                              value: task.progress,
                               color: Colors.orange,
                             ),
                           )
@@ -625,3 +625,4 @@ class _PodcastPageState extends State<PodcastPage> {
     );
   }
 }
+

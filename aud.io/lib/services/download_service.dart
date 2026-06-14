@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/api_service.dart';
+import 'package:aud_io/services/youtube_explode_service.dart';
 import 'download_platform.dart' if (dart.library.html) 'download_platform_web.dart';
 
 // Notification callback type
@@ -59,7 +60,7 @@ class DownloadService extends ChangeNotifier {
 
   String? getLocalPath(String id) => _localFiles[id];
 
-  /// Download a YouTube/SoundCloud track
+  /// Download a YouTube/SoundCloud track via the Worker proxy
   Future<void> downloadTrack(String id, TrackSource source, {String? trackTitle}) async {
     if (_tasks.containsKey(id)) return;
     if (isDownloaded(id)) return;
@@ -70,22 +71,27 @@ class DownloadService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final baseUrl = ApiService.baseUrl;
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/download'),
-        headers: {'Content-Type': 'application/json'},
-        body: '{"id":"$id","source":"${source == TrackSource.soundcloud ? "soundcloud" : "youtube"}"}',
-      ).timeout(const Duration(minutes: 3));
-
-      if (response.statusCode != 200) {
-        throw Exception('Server error: ${response.statusCode}');
+      // Resolve a playable/downloadable stream URL
+      final String streamUrl;
+      if (kIsWeb) {
+        // Web: route through the Cloudflare Worker on the same domain.
+        streamUrl = source == TrackSource.youtube
+            ? '/api/yt-proxy?videoId=$id'
+            : '/api/stream/$id/audio?source=${source == TrackSource.soundcloud ? "soundcloud" : "youtube"}';
+      } else if (source == TrackSource.youtube) {
+        // Mobile: extract direct googlevideo URL via InnerTube.
+        final direct = await YouTubeExplodeService.getAudioUrl(id);
+        if (direct == null) throw Exception('Could not resolve YouTube stream');
+        streamUrl = direct;
+      } else {
+        // Mobile: resolve SoundCloud stream URL directly.
+        final direct = await ApiService.getStreamUrl(id, source);
+        if (direct == null) throw Exception('Could not resolve stream URL');
+        streamUrl = direct;
       }
 
-      final fileUrl = '$baseUrl/api/download/$id';
-
       if (kIsWeb) {
-        // Web: open download URL in new tab to trigger browser's native download
-        triggerDownload(fileUrl, trackTitle ?? id);
+        triggerDownload(streamUrl, trackTitle ?? id);
         task.status = DownloadStatus.completed;
         task.progress = 1.0;
         _notify(DownloadNotification(id: id, type: DownloadNotificationType.completed, title: trackTitle ?? 'Download complete', progress: 1.0));
@@ -94,8 +100,8 @@ class DownloadService extends ChangeNotifier {
       }
 
       // Mobile: stream to local file
-      final req = http.Request('GET', Uri.parse(fileUrl));
-      final streamed = await http.Client().send(req);
+      final req = http.Request('GET', Uri.parse(streamUrl));
+      final streamed = await http.Client().send(req).timeout(const Duration(minutes: 5));
       final totalBytes = streamed.contentLength ?? 0;
       int receivedBytes = 0;
 

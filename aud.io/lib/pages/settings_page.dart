@@ -139,6 +139,8 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
+  // TODO: re-enable this when theme selection is needed
+  // ignore: unused_element
   Widget _buildThemeCard(BuildContext context) {
     return Consumer<SettingsService>(
       builder: (_, s, __) => _BentoCard(
@@ -497,3 +499,5 @@ class _BentoCard extends StatelessWidget {
     );
   }
 }
+
+

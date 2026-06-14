@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:aud_io/core/theme/aud_io_theme.dart';
 
 class AppIcons {
   static Widget explore({double size = 24, Color? color}) => Icon(Icons.explore_rounded, size: size, color: color);
@@ -38,3 +37,4 @@ class AppIcons {
   static Widget arrowBack({double size = 24, Color? color}) => Icon(Icons.arrow_back_rounded, size: size, color: color);
   static Widget folderOpen({double size = 24, Color? color}) => Icon(Icons.folder_open_rounded, size: size, color: color);
 }
+
