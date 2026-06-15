@@ -36,9 +36,6 @@ ios/.symlinks/
 ios/Flutter/Flutter.podspec
 ios/Flutter/Generated.xcconfig
 
-# Supabase
-supabase/.temp/
-
 # Logs
 *.log
 
@@ -48,4 +45,18 @@ coverage/
 
 # Dart
 pubspec.lock
+
+# Dev tools — do not commit
+.claude/
+.agents/
 .wrangler/
+.netlify/
+skills-lock.json
+*.html
+!web/index.html
+*.png
+!assets/icons/default.png
+!assets/images/bg.png
+!web/favicon.png
+!web/bg.png
+!web/icons/*.png

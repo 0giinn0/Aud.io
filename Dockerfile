@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Debian bookworm marks the system Python env as externally managed (PEP 668);
 # --break-system-packages is required for a system-wide yt-dlp in a container.
-RUN pip3 install --no-cache-dir --break-system-packages yt-dlp
+RUN pip3 install --no-cache-dir --break-system-packages --root-user-action=ignore yt-dlp
 
 # PO token provider: YouTube refuses datacenter IPs without a proof-of-origin
 # token. The bgutil sidecar generates them; the pip plugin makes yt-dlp use it.
@@ -37,4 +37,4 @@ ENV PORT=10000
 
 EXPOSE 10000
 
-CMD ["sh", "start.sh"]
+CMD ["node", "src/index.js"]

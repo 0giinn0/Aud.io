@@ -2,7 +2,7 @@ name: Deploy web to Cloudflare Pages
 
 on:
   push:
-    branches: [master, main]
+    branches: [main]
   workflow_dispatch:
 
 jobs:

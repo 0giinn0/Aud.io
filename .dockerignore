@@ -1,8 +1,12 @@
-# Only the Node server is needed in the build context.
-*
-!aud.io/server
-aud.io/server/node_modules
-aud.io/server/downloads
-aud.io/server/.env
-aud.io/server/*.log
-aud.io/server/*player-script.js
+node_modules
+npm-debug.log*
+.git
+.github
+.idea
+.vscode
+wrangler.toml
+.wrangler
+.netlify
+.agents
+*.md
+!README.md
