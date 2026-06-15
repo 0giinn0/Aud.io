@@ -47,7 +47,8 @@ export default {
     const podcastDetailMatch = path.match(/^\/api\/podcasts\/podcast\/([^/]+)$/);
     if (podcastDetailMatch) return handlePodcastDetail(podcastDetailMatch[1], url, env);
 
-    return new Response('Not Found', { status: 404 });
+    // Fall through to serve static assets from the Pages deployment.
+    return env.ASSETS.fetch(request);
   },
 };
 
