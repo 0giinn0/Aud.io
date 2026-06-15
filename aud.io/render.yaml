@@ -19,3 +19,9 @@ services:
         value: aud.io/1.0
       - key: SOUNDCLOUD_CLIENT_ID
         sync: false
+      - key: SPOTIFY_CLIENT_ID
+        value: c2a22ea075c24aefb1f0d35506c3cecd
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: SPOTIFY_REDIRECT_URI
+        value: https://aud-io-web.pages.dev/callback

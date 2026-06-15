@@ -9,6 +9,7 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import fs from 'node:fs';
+import config from '../config.js';
 
 const execFileAsync = promisify(execFile);
 const router = Router();
@@ -361,6 +362,128 @@ router.get('/download/:id', (req, res) => {
     return;
   }
   res.sendFile(filePath);
+});
+
+// ===== SPOTIFY ROUTES =====
+
+router.post('/spotify/token', async (req, res, next) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      res.status(400).json({ error: true, message: 'Missing code' });
+      return;
+    }
+    const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: config.spotify.redirectUri,
+    });
+    const authHeader = Buffer.from(
+      `${config.spotify.clientId}:${config.spotify.clientSecret}`
+    ).toString('base64');
+    const resp = await axios.post('https://accounts.spotify.com/api/token', params.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${authHeader}`,
+      },
+    });
+    res.json(resp.data);
+  } catch (err) {
+    logger.error({ err: err.message }, 'Spotify token exchange failed');
+    const status = err.response?.status || 502;
+    res.status(status).json({ error: true, message: err.response?.data?.error_description || 'Token exchange failed' });
+  }
+});
+
+router.post('/spotify/refresh', async (req, res, next) => {
+  try {
+    const { refresh_token } = req.body;
+    if (!refresh_token) {
+      res.status(400).json({ error: true, message: 'Missing refresh_token' });
+      return;
+    }
+    const params = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token,
+    });
+    const authHeader = Buffer.from(
+      `${config.spotify.clientId}:${config.spotify.clientSecret}`
+    ).toString('base64');
+    const resp = await axios.post('https://accounts.spotify.com/api/token', params.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${authHeader}`,
+      },
+    });
+    res.json(resp.data);
+  } catch (err) {
+    logger.error({ err: err.message }, 'Spotify token refresh failed');
+    res.status(502).json({ error: true, message: 'Token refresh failed' });
+  }
+});
+
+router.get('/spotify/playlists', async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      res.status(401).json({ error: true, message: 'Missing Authorization header' });
+      return;
+    }
+    const limit = Math.min(parseInt(req.query.limit || '50', 10), 50);
+    const offset = parseInt(req.query.offset || '0', 10);
+    const resp = await axios.get('https://api.spotify.com/v1/me/playlists', {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { limit, offset },
+    });
+    const playlists = resp.data.items.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description || '',
+      image: p.images?.[0]?.url || null,
+      trackCount: p.tracks.total,
+      owner: p.owner?.display_name || '',
+      externalUrl: p.external_urls?.spotify || '',
+    }));
+    res.json({ playlists, total: resp.data.total });
+  } catch (err) {
+    logger.error({ err: err.message }, 'Spotify playlists fetch failed');
+    res.status(err.response?.status || 502).json({ error: true, message: 'Failed to fetch playlists' });
+  }
+});
+
+router.get('/spotify/playlists/:id/tracks', async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      res.status(401).json({ error: true, message: 'Missing Authorization header' });
+      return;
+    }
+    const limit = Math.min(parseInt(req.query.limit || '100', 10), 100);
+    const offset = parseInt(req.query.offset || '0', 10);
+    const resp = await axios.get(`https://api.spotify.com/v1/playlists/${req.params.id}/tracks`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { limit, offset, market: 'US' },
+    });
+    const tracks = resp.data.items
+      .filter((item) => item.track && item.track.name)
+      .map((item) => {
+        const t = item.track;
+        return {
+          id: t.id,
+          title: t.name,
+          artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown',
+          album: t.album?.name || '',
+          artwork: t.album?.images?.[0]?.url || null,
+          duration: Math.floor((t.duration_ms || 0) / 1000),
+          previewUrl: t.preview_url || null,
+          externalUrl: t.external_urls?.spotify || '',
+        };
+      });
+    res.json({ tracks, total: resp.data.total });
+  } catch (err) {
+    logger.error({ err: err.message }, 'Spotify playlist tracks fetch failed');
+    res.status(err.response?.status || 502).json({ error: true, message: 'Failed to fetch playlist tracks' });
+  }
 });
 
 export default router;

@@ -1,5 +1,6 @@
 import 'dart:developer' as dev;
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -14,6 +15,7 @@ import 'package:aud_io/services/settings_service.dart';
 import 'package:aud_io/services/local_file_scanner.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
 import 'package:aud_io/services/youtube_music_service.dart';
+import 'package:aud_io/services/spotify_auth_service.dart';
 import 'package:aud_io/pages/home_page.dart';
 import 'package:aud_io/pages/profile_page.dart';
 import 'package:aud_io/pages/now_playing_page.dart';
@@ -22,6 +24,8 @@ import 'package:aud_io/pages/podcast_page.dart';
 import 'package:aud_io/widgets/mini_player.dart';
 import 'package:aud_io/widgets/golden_spiral_nav.dart';
 import 'package:aud_io/widgets/loading_bar.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html if (dart.library.js_interop) 'dart:js_interop';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,6 +105,7 @@ class _ProviderScopeState extends State<_ProviderScope> {
   late final SettingsService _settingsService;
   late final LocalFileScanner _localFileScanner;
   late final LocalPlaylistService _playlistService;
+  late final SpotifyAuthService _spotifyAuthService;
 
   @override
   void initState() {
@@ -113,6 +118,8 @@ class _ProviderScopeState extends State<_ProviderScope> {
     _localFileScanner = LocalFileScanner();
     _playlistService = LocalPlaylistService();
     _playlistService.load();
+    _spotifyAuthService = SpotifyAuthService.instance;
+    _spotifyAuthService.init();
   }
 
   @override
@@ -121,6 +128,7 @@ class _ProviderScopeState extends State<_ProviderScope> {
     _settingsService.dispose();
     _localFileScanner.dispose();
     _playlistService.dispose();
+    _spotifyAuthService.dispose();
     super.dispose();
   }
 
@@ -134,6 +142,7 @@ class _ProviderScopeState extends State<_ProviderScope> {
         ChangeNotifierProvider.value(value: _settingsService),
         ChangeNotifierProvider.value(value: _localFileScanner),
         ChangeNotifierProvider.value(value: _playlistService),
+        ChangeNotifierProvider.value(value: _spotifyAuthService),
       ],
       child: widget.child,
     );
@@ -182,8 +191,25 @@ class _AppShellState extends State<AppShell> {
     _downloadService = context.read<DownloadService>();
     _downloadService.setNotificationCallback(_handleDownloadNotification);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<MusicLibrary>().init();
+      if (mounted) {
+        context.read<MusicLibrary>().init();
+        _handleSpotifyCallback();
+      }
     });
+  }
+
+  void _handleSpotifyCallback() {
+    if (!mounted) return;
+    final uri = Uri.base;
+    final code = uri.queryParameters['code'];
+    if (code != null && code.isNotEmpty) {
+      context.read<SpotifyAuthService>().exchangeCode(code);
+      // Clear the URL parameters
+      if (uri.queryParameters.containsKey('code')) {
+        final cleanUri = uri.replace(queryParameters: {});
+        html.window.history.replaceState(null, '', cleanUri.toString());
+      }
+    }
   }
 
   void _handleDownloadNotification(DownloadNotification notification) {

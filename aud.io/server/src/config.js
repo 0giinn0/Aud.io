@@ -19,5 +19,10 @@ export default {
     apiSecret: process.env.PODCAST_INDEX_API_SECRET || '',
     userAgent: process.env.PODCAST_INDEX_USER_AGENT || 'aud.io/1.0',
   },
+  spotify: {
+    clientId: process.env.SPOTIFY_CLIENT_ID || '',
+    clientSecret: process.env.SPOTIFY_CLIENT_SECRET || '',
+    redirectUri: process.env.SPOTIFY_REDIRECT_URI || 'https://aud-io-web.pages.dev/callback',
+  },
   isDev: (process.env.NODE_ENV || 'development') === 'development',
 };

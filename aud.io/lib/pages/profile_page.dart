@@ -1,11 +1,13 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/core/models/playlist_model.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
 import 'package:aud_io/services/local_file_scanner.dart';
+import 'package:aud_io/services/spotify_auth_service.dart';
 import 'package:aud_io/services/settings_service.dart';
 import 'package:aud_io/widgets/track_context_sheet.dart';
 import 'package:aud_io/widgets/proxied_image.dart';
@@ -51,6 +53,9 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 24),
 
               _buildLocalMusicSection(context),
+              const SizedBox(height: 24),
+
+              _buildSpotifySection(context),
               const SizedBox(height: 24),
 
               // Playlists header
@@ -179,6 +184,94 @@ class ProfilePage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSpotifySection(BuildContext context) {
+    final spotify = context.watch<SpotifyAuthService>();
+    final handler = context.watch<AppAudioHandler>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Spotify Import', style: TextStyle(
+              fontSize: 12, color: AudIoTheme.muted, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (!spotify.isLoggedIn)
+          GestureDetector(
+            onTap: () async {
+              final url = Uri.parse(spotify.authUrl);
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.platformDefault);
+              }
+            },
+            child: Container(
+              height: 70,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [const Color(0xFF1DB954).withValues(alpha: 0.2), AudIoTheme.surface],
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Container(width: 36, height: 36,
+                    decoration: BoxDecoration(color: const Color(0xFF1DB954), borderRadius: BorderRadius.circular(18)),
+                    child: const Icon(Icons.music_note_rounded, size: 18, color: Colors.white)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Connect Spotify', style: TextStyle(
+                          fontSize: 14, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
+                        Text('Import playlists', style: TextStyle(
+                          fontSize: 10, color: AudIoTheme.subtle)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AudIoTheme.subtle),
+                ],
+              ),
+            ),
+          )
+        else ...[
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1DB954).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Container(width: 8, height: 8,
+                      decoration: const BoxDecoration(color: Color(0xFF1DB954), shape: BoxShape.circle)),
+                    const SizedBox(width: 6),
+                    Text('Connected', style: TextStyle(
+                      fontSize: 10, color: const Color(0xFF1DB954), fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => spotify.logout(),
+                child: Text('Logout', style: TextStyle(
+                  fontSize: 10, color: AudIoTheme.error, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _SpotifyPlaylistList(spotify: spotify, handler: handler),
+        ],
+      ],
     );
   }
 
@@ -740,5 +833,131 @@ class _PlaylistTrackTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _SpotifyPlaylistList extends StatefulWidget {
+  final SpotifyAuthService spotify;
+  final AppAudioHandler handler;
+  const _SpotifyPlaylistList({required this.spotify, required this.handler});
+
+  @override
+  State<_SpotifyPlaylistList> createState() => _SpotifyPlaylistListState();
+}
+
+class _SpotifyPlaylistListState extends State<_SpotifyPlaylistList> {
+  List<SpotifyPlaylist>? _playlists;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlaylists();
+  }
+
+  Future<void> _loadPlaylists() async {
+    final playlists = await widget.spotify.getPlaylists();
+    if (mounted) setState(() { _playlists = playlists; _loading = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Container(
+        height: 60,
+        decoration: BoxDecoration(color: AudIoTheme.surface, borderRadius: BorderRadius.circular(14)),
+        child: Center(child: SizedBox(width: 18, height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2, color: AudIoTheme.subtle))),
+      );
+    }
+    if (_playlists == null || _playlists!.isEmpty) {
+      return Container(
+        height: 60,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: AudIoTheme.surface, borderRadius: BorderRadius.circular(14)),
+        child: Center(child: Text('No playlists found', style: TextStyle(fontSize: 11, color: AudIoTheme.subtle))),
+      );
+    }
+    return Column(
+      children: [
+        ..._playlists!.map((p) => GestureDetector(
+          onTap: () => _importPlaylist(p),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AudIoTheme.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                if (p.image != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(p.image!, width: 44, height: 44, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
+                        color: AudIoTheme.surfaceVariant,
+                        child: Icon(Icons.queue_music_rounded, size: 18, color: AudIoTheme.subtle))),
+                  )
+                else
+                  Container(width: 44, height: 44,
+                    decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+                    child: Icon(Icons.queue_music_rounded, size: 18, color: AudIoTheme.subtle)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(p.name, style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface,
+                        fontWeight: FontWeight.w500),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text('${p.trackCount} tracks · ${p.owner}',
+                        style: TextStyle(fontSize: 10, color: AudIoTheme.subtle),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                Icon(Icons.download_rounded, size: 16, color: AudIoTheme.primary),
+              ],
+            ),
+          ),
+        )),
+      ],
+    );
+  }
+
+  Future<void> _importPlaylist(SpotifyPlaylist playlist) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Importing "${playlist.name}"...'),
+      duration: const Duration(seconds: 2),
+      backgroundColor: AudIoTheme.surfaceVariant,
+    ));
+
+    final tracks = await widget.spotify.getPlaylistTracks(playlist.id);
+    if (tracks.isEmpty || !mounted) return;
+
+    final localPlaylistService = context.read<LocalPlaylistService>();
+
+    for (final st in tracks) {
+      final track = Track(
+        id: 'spotify_${st.id}',
+        title: st.title,
+        artist: st.artist,
+        album: st.album,
+        thumbnailUrl: st.artwork,
+        duration: st.duration,
+        source: TrackSource.soundcloud,
+      );
+      await localPlaylistService.addToPlaylist(playlist.name, track);
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Imported ${tracks.length} tracks into "${playlist.name}"'),
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.green,
+      ));
+    }
   }
 }
