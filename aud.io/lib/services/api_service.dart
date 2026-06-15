@@ -7,25 +7,19 @@ import 'package:aud_io/core/models/podcast.dart';
 class ApiService {
   ApiService._();
 
-  /// On web, Workers are on the same domain → use relative URLs (no CORS).
-  /// On mobile, uses BASE_URL compile-time define or localhost fallback.
   static String get baseUrl {
-    if (kIsWeb) return '';
     const envUrl = String.fromEnvironment('BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
+    if (kIsWeb) return 'https://aud-io-1.onrender.com';
     return 'http://10.0.2.2:3000';
   }
 
   static String proxyAudioUrl(String id, TrackSource source) {
     final sourceStr = source == TrackSource.soundcloud ? 'soundcloud' : 'youtube';
-    if (source == TrackSource.youtube && kIsWeb) {
-      return '/api/yt-proxy?videoId=$id';
-    }
-    return '/api/proxy?url=${Uri.encodeComponent('$baseUrl/api/stream/$id/audio?source=$sourceStr')}';
+    return '$baseUrl/api/stream/$id/audio?source=$sourceStr';
   }
 
   static String proxyDirectUrl(String url) {
-    if (kIsWeb) return '/api/proxy?url=${Uri.encodeComponent(url)}';
     return '$baseUrl/api/proxy?url=${Uri.encodeComponent(url)}';
   }
 

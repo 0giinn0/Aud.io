@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:aud_io/services/api_service.dart';
 
 /// Wraps [Image.network] with a proxy that provides CORS headers and
 /// upgrades HTTP → HTTPS, fixing common web-blocked image issues.
@@ -27,8 +28,8 @@ class ProxiedImage extends StatelessWidget {
     if (url == null || url!.isEmpty) return null;
     // On mobile (APK) use original URL — no CORS issues
     if (!kIsWeb) return url;
-    // On web, proxy through the Worker on the same domain.
-    return '/api/proxy-image?url=${Uri.encodeQueryComponent(url!)}';
+    // On web, proxy through Render to get CORS headers + HTTPS upgrade
+    return '${ApiService.baseUrl}/api/proxy-image?url=${Uri.encodeQueryComponent(url!)}';
   }
 
   @override

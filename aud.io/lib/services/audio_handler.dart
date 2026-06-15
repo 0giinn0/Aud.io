@@ -121,8 +121,10 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
 
   Uri? _proxiedArtUri(String? thumbnailUrl) {
     if (thumbnailUrl == null || thumbnailUrl.isEmpty) return null;
+    // On web, route artwork through the image proxy to fix CORS
+    // (most podcast/FMA CDNs don't send Access-Control-Allow-Origin).
     if (kIsWeb) {
-      return Uri.parse('/api/proxy-image?url=${Uri.encodeComponent(thumbnailUrl)}');
+      return Uri.parse('${ApiService.baseUrl}/api/proxy-image?url=${Uri.encodeComponent(thumbnailUrl)}');
     }
     return Uri.tryParse(thumbnailUrl);
   }
@@ -231,10 +233,11 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
         return Uri.file(path);
       case TrackSource.youtube:
         // Mobile: extract direct googlevideo URL via InnerTube (no server).
-        // Web: Worker proxies InnerTube + audio bytes at /api/yt-proxy.
+        // Web: route through the server proxy (YouTube API has no CORS).
         if (kIsWeb) {
-          return Uri.parse('/api/yt-proxy?videoId=${track.id}');
+          return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
         }
+        // Use prefetched URL if available, otherwise resolve fresh.
         final cached = track.audioUrl;
         final directUrl = cached ?? await YouTubeExplodeService.getAudioUrl(track.id);
         if (directUrl != null) {
@@ -245,33 +248,44 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
       case TrackSource.podcast:
         final purl = track.audioUrl;
         if (purl == null) return null;
-        return Uri.parse(kIsWeb ? '/api/proxy?url=${Uri.encodeComponent(purl)}' : purl);
-      case TrackSource.soundcloud:
-        // Mobile: resolve SoundCloud stream URL directly.
-        // Web: Worker resolves the stream URL.
-        if (kIsWeb) {
-          return Uri.parse('/api/stream/${track.id}/audio?source=soundcloud');
-        }
-        final url = track.audioUrl ??= await ApiService.getStreamUrl(track.id, track.source);
-        return url != null ? Uri.parse(url) : null;
+        // Podcast hosts rarely send CORS headers, so on web go through the
+        // generic proxy; native can hit the URL directly.
+        return Uri.parse(kIsWeb ? ApiService.proxyDirectUrl(purl) : purl);
       default:
+        // On web, route through the proxy too: it adds the CORS headers the
+        // browser requires, follows upstream redirects server-side, and serves
+        // progressive bytes with Range support. Native plays the direct
+        // upstream URL (no CORS limits) to save a hop.
         if (kIsWeb) {
-          return Uri.parse(ApiService.proxyDirectUrl(track.audioUrl ?? '/api/proxy'));
+          return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
         }
         final url = track.audioUrl ??= await ApiService.getStreamUrl(track.id, track.source);
         return url != null ? Uri.parse(url) : null;
     }
   }
 
-  /// Pre-warm the next track — only meaningful for YouTube on mobile
-  /// where InnerTube extraction can be cached. Web delegates to Worker.
+  /// Warm up the next track so skips start instantly: for YouTube this
+  /// pre-extracts the stream URL into the cache; for SoundCloud/FMA
+  /// it stores the resolved URL on the track.
   void _prefetchNext() {
     final idx = _currentIndex;
     if (idx == null || idx + 1 >= _queue.length) return;
     final next = _queue[idx + 1];
-    if (next.source != TrackSource.youtube || kIsWeb) return;
+    if (next.source == TrackSource.local ||
+        next.source == TrackSource.fake ||
+        next.source == TrackSource.podcast) return;
 
-    YouTubeExplodeService.getAudioUrl(next.id).then((url) {
+    // YouTube on mobile: pre-warm the InnerTube cache.
+    if (next.source == TrackSource.youtube && !kIsWeb) {
+      YouTubeExplodeService.getAudioUrl(next.id).then((url) {
+        if (url != null) next.audioUrl = url;
+      }).catchError((_) {});
+      return;
+    }
+
+    // Non-YouTube (or YouTube on web): route through the server proxy.
+    if (next.audioUrl != null) return;
+    ApiService.getStreamUrl(next.id, next.source).then((url) {
       if (url != null) next.audioUrl = url;
     }).catchError((_) {});
   }

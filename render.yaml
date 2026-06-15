@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: aud-io-server
+    runtime: docker
+    repo: https://github.com/0giinn0/Aud.io
+    branch: main
+    # Root-level Dockerfile builds from the repo root and copies in
+    # aud.io/server — this also matches Render's dashboard defaults
+    # (Dockerfile path "Dockerfile", context ".") for manually created services.
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: PODCAST_INDEX_API_KEY
+        sync: false
+      - key: PODCAST_INDEX_API_SECRET
+        sync: false
+      - key: PODCAST_INDEX_USER_AGENT
+        value: aud.io/1.0
+      - key: SOUNDCLOUD_CLIENT_ID
+        sync: false
