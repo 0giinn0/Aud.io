@@ -25,10 +25,10 @@ class Track {
     this.artistUrl,
   });
 
-  factory Track.fromLocalFile(dynamic file) {
-    final path = file.path as String;
-    final name = path.split('/').last;
-    final baseName = name.substring(0, name.lastIndexOf('.'));
+  factory Track.fromLocalFile(String path) {
+    final name = path.split('/').last.split('\\').last;
+    final dot = name.lastIndexOf('.');
+    final baseName = dot > 0 ? name.substring(0, dot) : name;
     return Track(
       id: 'local_${path.hashCode}',
       title: baseName,

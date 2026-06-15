@@ -5,6 +5,7 @@ import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/core/models/playlist_model.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
+import 'package:aud_io/services/local_file_scanner.dart';
 import 'package:aud_io/services/settings_service.dart';
 import 'package:aud_io/widgets/track_context_sheet.dart';
 import 'package:aud_io/widgets/proxied_image.dart';
@@ -18,8 +19,9 @@ class ProfilePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AudIoTheme.bg,
       body: Consumer<LocalPlaylistService>(
-        builder: (context, service, _) {
-          return ListView(
+          builder: (context, service, _) {
+            context.watch<LocalFileScanner>();
+            return ListView(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
             children: [
               Text('Your Library', style: TextStyle(
@@ -46,7 +48,10 @@ class ProfilePage extends StatelessWidget {
                   Expanded(child: _buildStatMini('Liked', '${service.favoriteCount}', Icons.favorite_rounded)),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
+
+              _buildLocalMusicSection(context),
+              const SizedBox(height: 24),
 
               // Playlists header
               Row(
@@ -64,6 +69,115 @@ class ProfilePage extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildLocalMusicSection(BuildContext context) {
+    final scanner = context.watch<LocalFileScanner>();
+    final handler = context.watch<AppAudioHandler>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Local Music', style: TextStyle(
+              fontSize: 12, color: AudIoTheme.muted, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+            const Spacer(),
+            Text('${scanner.tracks.length} files', style: TextStyle(
+              fontSize: 10, color: AudIoTheme.subtle)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.storage_rounded,
+                label: 'Scan Device',
+                sublabel: scanner.isScanning ? 'Scanning...' : 'Auto-find music',
+                onTap: scanner.isScanning ? null : () => scanner.scan(),
+                accent: AudIoTheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.folder_open_rounded,
+                label: 'Pick Folder',
+                sublabel: 'Choose a directory',
+                onTap: scanner.isScanning ? null : () => scanner.pickDirectory(),
+                accent: AudIoTheme.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.add_circle_outline,
+                label: 'Pick Files',
+                sublabel: 'Select audio files',
+                onTap: scanner.isScanning ? null : () => scanner.pickFiles(),
+                accent: AudIoTheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.delete_sweep_outlined,
+                label: 'Clear',
+                sublabel: 'Remove all local tracks',
+                onTap: scanner.tracks.isEmpty ? null : () => scanner.clear(),
+                accent: AudIoTheme.error,
+              ),
+            ),
+          ],
+        ),
+        if (scanner.tracks.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('Tracks', style: TextStyle(
+            fontSize: 10, color: AudIoTheme.subtle)),
+          const SizedBox(height: 8),
+          ...scanner.tracks.map((track) => _LocalFileTile(
+            track: track,
+            onPlay: () => handler.setQueue(scanner.tracks, startIndex: scanner.tracks.indexOf(track)),
+          )),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildActionCard({
+    required IconData icon,
+    required String label,
+    required String sublabel,
+    VoidCallback? onTap,
+    required Color accent,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 90,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AudIoTheme.surface,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: accent),
+            const Spacer(),
+            Text(label, style: TextStyle(
+              fontSize: 13, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
+            Text(sublabel, style: TextStyle(
+              fontSize: 9, color: AudIoTheme.subtle)),
+          ],
+        ),
       ),
     );
   }
@@ -513,6 +627,52 @@ class _LikedSongsPage extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _LocalFileTile extends StatelessWidget {
+  final Track track;
+  final VoidCallback onPlay;
+
+  const _LocalFileTile({required this.track, required this.onPlay});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = track.audioUrl?.split('/').last.split('\\').last ?? track.title;
+    return InkWell(
+      onTap: onPlay,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AudIoTheme.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(width: 36, height: 36,
+              decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+              child: Icon(Icons.music_note_rounded, size: 16, color: AudIoTheme.subtle)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(track.title, style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface,
+                    fontWeight: FontWeight.w500),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Text(name, style: TextStyle(fontSize: 9, color: AudIoTheme.subtle),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            Icon(Icons.play_arrow_rounded, size: 18, color: AudIoTheme.subtle),
+          ],
+        ),
+      ),
     );
   }
 }
