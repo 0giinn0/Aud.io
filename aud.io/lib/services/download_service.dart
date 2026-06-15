@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/api_service.dart';
+import 'download_platform.dart' if (dart.library.html) 'download_platform_web.dart';
 
 // Notification callback type
 typedef DownloadNotificationCallback = void Function(DownloadNotification notification);
@@ -21,7 +22,6 @@ class DownloadService extends ChangeNotifier {
   Map<String, DownloadTask> get tasks => Map.unmodifiable(_tasks);
   Map<String, String> get localFiles => Map.unmodifiable(_localFiles);
 
-  /// Set a callback for download notifications
   void setNotificationCallback(DownloadNotificationCallback callback) {
     _notificationCallback = callback;
   }
@@ -47,8 +47,8 @@ class DownloadService extends ChangeNotifier {
     try {
       final files = _downloadDir!.listSync();
       for (final file in files) {
-        if (file is File && file.path.endsWith('.mp3')) {
-          final id = file.path.split('/').last.replaceAll('.mp3', '');
+        if (file is File && (file.path.endsWith('.mp3') || file.path.endsWith('.opus') || file.path.endsWith('.m4a'))) {
+          final id = file.path.split('/').last.replaceAll(RegExp(r'\.(mp3|opus|m4a)$'), '');
           _localFiles[id] = file.path;
         }
       }
@@ -59,18 +59,14 @@ class DownloadService extends ChangeNotifier {
 
   String? getLocalPath(String id) => _localFiles[id];
 
+  /// Download a YouTube/SoundCloud track
   Future<void> downloadTrack(String id, TrackSource source, {String? trackTitle}) async {
     if (_tasks.containsKey(id)) return;
     if (isDownloaded(id)) return;
 
     final task = DownloadTask(id: id, source: source, status: DownloadStatus.downloading, progress: 0.0, title: trackTitle);
     _tasks[id] = task;
-    _notify(DownloadNotification(
-      id: id,
-      type: DownloadNotificationType.started,
-      title: trackTitle ?? 'Download starting',
-      progress: 0.0,
-    ));
+    _notify(DownloadNotification(id: id, type: DownloadNotificationType.started, title: trackTitle ?? 'Download starting', progress: 0.0));
     notifyListeners();
 
     try {
@@ -85,42 +81,31 @@ class DownloadService extends ChangeNotifier {
         throw Exception('Server error: ${response.statusCode}');
       }
 
-      if (response.body.contains('"cached":true')) {
+      final fileUrl = '$baseUrl/api/download/$id';
+
+      if (kIsWeb) {
+        // Web: open download URL in new tab to trigger browser's native download
+        triggerDownload(fileUrl, trackTitle ?? id);
         task.status = DownloadStatus.completed;
         task.progress = 1.0;
-        if (!kIsWeb) {
-          final localPath = '${_downloadDir!.path}/$id.mp3';
-          _localFiles[id] = localPath;
-        }
-        _notify(DownloadNotification(
-          id: id,
-          type: DownloadNotificationType.completed,
-          title: trackTitle ?? 'Download complete',
-          progress: 1.0,
-        ));
+        _notify(DownloadNotification(id: id, type: DownloadNotificationType.completed, title: trackTitle ?? 'Download complete', progress: 1.0));
         notifyListeners();
         return;
       }
 
-      final fileUrl = '$baseUrl/api/download/$id';
+      // Mobile: stream to local file
       final req = http.Request('GET', Uri.parse(fileUrl));
       final streamed = await http.Client().send(req);
       final totalBytes = streamed.contentLength ?? 0;
       int receivedBytes = 0;
 
-      if (!kIsWeb && _downloadDir != null) {
+      if (_downloadDir != null) {
         final file = File('${_downloadDir!.path}/$id.mp3');
         final sink = file.openWrite();
         await for (final chunk in streamed.stream) {
           sink.add(chunk);
           receivedBytes += chunk.length;
           task.progress = totalBytes > 0 ? receivedBytes / totalBytes : 0.5;
-          _notify(DownloadNotification(
-            id: id,
-            type: DownloadNotificationType.progress,
-            title: trackTitle ?? 'Downloading...',
-            progress: task.progress,
-          ));
           notifyListeners();
         }
         await sink.close();
@@ -129,23 +114,66 @@ class DownloadService extends ChangeNotifier {
 
       task.status = DownloadStatus.completed;
       task.progress = 1.0;
-      _notify(DownloadNotification(
-        id: id,
-        type: DownloadNotificationType.completed,
-        title: trackTitle ?? 'Download complete',
-        progress: 1.0,
-      ));
+      _notify(DownloadNotification(id: id, type: DownloadNotificationType.completed, title: trackTitle ?? 'Download complete', progress: 1.0));
       notifyListeners();
     } catch (e) {
       task.status = DownloadStatus.failed;
       task.error = e.toString();
-      _notify(DownloadNotification(
-        id: id,
-        type: DownloadNotificationType.failed,
-        title: trackTitle ?? 'Download failed',
-        error: e.toString(),
-        progress: 0.0,
-      ));
+      _notify(DownloadNotification(id: id, type: DownloadNotificationType.failed, title: trackTitle ?? 'Download failed', error: e.toString(), progress: 0.0));
+      notifyListeners();
+    }
+  }
+
+  /// Download a podcast episode directly from its audio URL
+  Future<void> downloadPodcastEpisode(String episodeId, String audioUrl, {String? title, String? thumbnailUrl}) async {
+    if (_tasks.containsKey(episodeId)) return;
+    if (isDownloaded(episodeId)) return;
+
+    final task = DownloadTask(id: episodeId, source: TrackSource.podcast, status: DownloadStatus.downloading, progress: 0.0, title: title);
+    _tasks[episodeId] = task;
+    _notify(DownloadNotification(id: episodeId, type: DownloadNotificationType.started, title: title ?? 'Download starting', progress: 0.0));
+    notifyListeners();
+
+    try {
+      if (kIsWeb) {
+        // Web: trigger browser download of the audio URL directly
+        triggerDownload(ApiService.proxyDirectUrl(audioUrl), title ?? episodeId);
+        task.status = DownloadStatus.completed;
+        task.progress = 1.0;
+        _notify(DownloadNotification(id: episodeId, type: DownloadNotificationType.completed, title: title ?? 'Download complete', progress: 1.0));
+        notifyListeners();
+        return;
+      }
+
+      // Mobile: stream to local file via proxy
+      final baseUrl = ApiService.baseUrl;
+      final proxyUrl = '$baseUrl/api/proxy?url=${Uri.encodeQueryComponent(audioUrl)}';
+      final req = http.Request('GET', Uri.parse(proxyUrl));
+      final streamed = await http.Client().send(req).timeout(const Duration(minutes: 5));
+      final totalBytes = streamed.contentLength ?? 0;
+      int receivedBytes = 0;
+
+      if (_downloadDir != null) {
+        final file = File('${_downloadDir!.path}/$episodeId.mp3');
+        final sink = file.openWrite();
+        await for (final chunk in streamed.stream) {
+          sink.add(chunk);
+          receivedBytes += chunk.length;
+          task.progress = totalBytes > 0 ? receivedBytes / totalBytes : 0.5;
+          notifyListeners();
+        }
+        await sink.close();
+        _localFiles[episodeId] = file.path;
+      }
+
+      task.status = DownloadStatus.completed;
+      task.progress = 1.0;
+      _notify(DownloadNotification(id: episodeId, type: DownloadNotificationType.completed, title: title ?? 'Download complete', progress: 1.0));
+      notifyListeners();
+    } catch (e) {
+      task.status = DownloadStatus.failed;
+      task.error = e.toString();
+      _notify(DownloadNotification(id: episodeId, type: DownloadNotificationType.failed, title: title ?? 'Download failed', error: e.toString(), progress: 0.0));
       notifyListeners();
     }
   }

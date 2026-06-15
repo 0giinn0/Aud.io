@@ -8,6 +8,8 @@ export default rateLimit({
   legacyHeaders: false,
   // Players issue a burst of Range requests while buffering/seeking;
   // rate-limiting the audio proxy would stall playback mid-track.
-  skip: (req) => req.path.endsWith('/audio'),
+  // Also skip the image proxy and generic proxy — they forward third-party
+  // content and can't be stuffed without external agreement anyway.
+  skip: (req) => req.path.endsWith('/audio') || req.path.includes('/proxy-image') || req.path.endsWith('/proxy'),
   message: { error: true, message: 'Too many requests — slow down, turbo' },
 });

@@ -1,8 +1,11 @@
+import 'dart:developer' as dev;
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
-import 'package:aud_io/config/app_config.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/theme/app_theme.dart';
 import 'package:aud_io/services/audio_handler.dart';
@@ -11,22 +14,33 @@ import 'package:aud_io/services/download_service.dart';
 import 'package:aud_io/services/settings_service.dart';
 import 'package:aud_io/services/local_file_scanner.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
+import 'package:aud_io/services/youtube_music_service.dart';
+import 'package:aud_io/services/spotify_auth_service.dart';
 import 'package:aud_io/pages/home_page.dart';
 import 'package:aud_io/pages/profile_page.dart';
 import 'package:aud_io/pages/now_playing_page.dart';
 import 'package:aud_io/pages/settings_page.dart';
 import 'package:aud_io/pages/podcast_page.dart';
-import 'package:aud_io/pages/artist_page.dart';
 import 'package:aud_io/widgets/mini_player.dart';
 import 'package:aud_io/widgets/golden_spiral_nav.dart';
 import 'package:aud_io/widgets/loading_bar.dart';
-
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:aud_io/services/auth_service.dart';
-import 'package:aud_io/services/database_service.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html if (dart.library.js_interop) 'dart:js_interop';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Init Hive for local persistence
+  await Hive.initFlutter();
+
+  // Init YouTube Music API
+  await YouTubeMusicService.initialize();
+
+  // Pipe logging from youtube_explode_dart etc. to debug console.
+  Logger.root.level = Level.WARNING;
+  Logger.root.onRecord.listen((r) {
+    dev.log(r.message, time: r.time, level: r.level.value, name: r.loggerName);
+  });
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -39,8 +53,6 @@ void main() async {
     debugPrint('FlutterError: ${details.exception}');
   };
 
-  // Register the handler with audio_service so playback continues in the
-  // background with media notification / lock screen / Bluetooth controls.
   AppAudioHandler audioHandler;
   try {
     audioHandler = await AudioService.init(
@@ -62,41 +74,16 @@ void main() async {
 
 class AudIoApp extends StatefulWidget {
   final AppAudioHandler audioHandler;
-  // Disabled in widget tests: Supabase's auth auto-refresh keeps a periodic
-  // timer alive, which the test framework flags as a leak.
-  final bool enableSupabase;
-  const AudIoApp({super.key, required this.audioHandler, this.enableSupabase = true});
+  const AudIoApp({super.key, required this.audioHandler});
 
   @override
   State<AudIoApp> createState() => _AudIoAppState();
 }
 
 class _AudIoAppState extends State<AudIoApp> {
-  bool _supabaseReady = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initSupabase();
-  }
-
-  Future<void> _initSupabase() async {
-    if (!widget.enableSupabase) return;
-    if (!AppConfig.supabaseUrl.contains('YOUR_PROJECT')) {
-      try {
-        await Supabase.initialize(
-          url: AppConfig.supabaseUrl,
-          publishableKey: AppConfig.supabaseAnonKey,
-        );
-        if (mounted) setState(() => _supabaseReady = true);
-      } catch (_) {}
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return _ProviderScope(
-      supabaseReady: _supabaseReady,
       audioHandler: widget.audioHandler,
       child: const _AppView(),
     );
@@ -104,10 +91,9 @@ class _AudIoAppState extends State<AudIoApp> {
 }
 
 class _ProviderScope extends StatefulWidget {
-  final bool supabaseReady;
   final AppAudioHandler audioHandler;
   final Widget child;
-  const _ProviderScope({required this.supabaseReady, required this.audioHandler, required this.child});
+  const _ProviderScope({required this.audioHandler, required this.child});
 
   @override
   State<_ProviderScope> createState() => _ProviderScopeState();
@@ -119,8 +105,7 @@ class _ProviderScopeState extends State<_ProviderScope> {
   late final SettingsService _settingsService;
   late final LocalFileScanner _localFileScanner;
   late final LocalPlaylistService _playlistService;
-  AuthService? _authService;
-  DatabaseService? _databaseService;
+  late final SpotifyAuthService _spotifyAuthService;
 
   @override
   void initState() {
@@ -133,23 +118,17 @@ class _ProviderScopeState extends State<_ProviderScope> {
     _localFileScanner = LocalFileScanner();
     _playlistService = LocalPlaylistService();
     _playlistService.load();
-    if (widget.supabaseReady) {
-      final sb = Supabase.instance.client;
-      _authService = AuthService(sb);
-      _databaseService = DatabaseService(sb);
-    }
+    _spotifyAuthService = SpotifyAuthService.instance;
+    _spotifyAuthService.init();
   }
 
   @override
   void dispose() {
     _musicLibrary.dispose();
-    // DownloadService is an app-lifetime singleton; disposing it here would
-    // break any later _ProviderScope (e.g. across widget tests).
     _settingsService.dispose();
     _localFileScanner.dispose();
     _playlistService.dispose();
-    _authService?.dispose();
-    _databaseService?.dispose();
+    _spotifyAuthService.dispose();
     super.dispose();
   }
 
@@ -163,10 +142,7 @@ class _ProviderScopeState extends State<_ProviderScope> {
         ChangeNotifierProvider.value(value: _settingsService),
         ChangeNotifierProvider.value(value: _localFileScanner),
         ChangeNotifierProvider.value(value: _playlistService),
-        if (widget.supabaseReady && _authService != null)
-          ChangeNotifierProvider.value(value: _authService!),
-        if (widget.supabaseReady && _databaseService != null)
-          ChangeNotifierProvider.value(value: _databaseService!),
+        ChangeNotifierProvider.value(value: _spotifyAuthService),
       ],
       child: widget.child,
     );
@@ -188,24 +164,15 @@ class _AppView extends StatelessWidget {
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: settings.lightMode ? ThemeMode.light : ThemeMode.dark,
-          home: AppShell(supabaseAvailable: _supabaseReadyFromContext(context)),
+          home: const AppShell(),
         );
       },
     );
   }
-
-  bool _supabaseReadyFromContext(BuildContext context) {
-    try {
-      return context.read<AuthService>() != null;
-    } catch (_) {
-      return false;
-    }
-  }
 }
 
 class AppShell extends StatefulWidget {
-  final bool supabaseAvailable;
-  const AppShell({super.key, required this.supabaseAvailable});
+  const AppShell({super.key});
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -222,11 +189,27 @@ class _AppShellState extends State<AppShell> {
     super.initState();
     _audioHandler = context.read<AppAudioHandler>();
     _downloadService = context.read<DownloadService>();
-    // Set up download notification callback
     _downloadService.setNotificationCallback(_handleDownloadNotification);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<MusicLibrary>().init();
+      if (mounted) {
+        context.read<MusicLibrary>().init();
+        _handleSpotifyCallback();
+      }
     });
+  }
+
+  void _handleSpotifyCallback() {
+    if (!mounted) return;
+    final uri = Uri.base;
+    final code = uri.queryParameters['code'];
+    if (code != null && code.isNotEmpty) {
+      context.read<SpotifyAuthService>().exchangeCode(code);
+      // Clear the URL parameters
+      if (uri.queryParameters.containsKey('code')) {
+        final cleanUri = uri.replace(queryParameters: {});
+        html.window.history.replaceState(null, '', cleanUri.toString());
+      }
+    }
   }
 
   void _handleDownloadNotification(DownloadNotification notification) {
@@ -257,8 +240,6 @@ class _AppShellState extends State<AppShell> {
     setState(() => _currentTab = index);
   }
 
-  // Android back button: from any tab → return to DISCOVER (home);
-  // from home → require a second press within 2s to exit the app.
   void _handleBack() {
     if (_currentTab != 0) {
       setState(() => _currentTab = 0);
@@ -278,13 +259,11 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final supabaseAvailable = widget.supabaseAvailable;
 
     return ChangeNotifierProvider.value(
       value: _audioHandler,
       child: Consumer<MusicLibrary>(
         builder: (context, musicLib, _) {
-          // Show loading overlay if not loaded yet
           if (!musicLib.isLoaded) {
             return Stack(
               children: [
@@ -306,9 +285,6 @@ class _AppShellState extends State<AppShell> {
               if (!didPop) _handleBack();
             },
             child: Scaffold(
-            // Don't resize the golden-spiral layout when the keyboard opens —
-            // the fixed panels would overflow. Search fields sit at the top, so
-            // the keyboard overlaying the bottom is fine.
             resizeToAvoidBottomInset: false,
             backgroundColor: theme.scaffoldBackgroundColor,
             body: SafeArea(
@@ -319,36 +295,29 @@ class _AppShellState extends State<AppShell> {
                       activeIndex: _currentTab,
                       onChanged: _onTabTap,
                       sections: [
-                        GoldenSection(
-                           label: 'DISCOVER',
-                           icon: Icons.home_rounded,
-                           panelColor: AudIoTheme.red,
-                           panelForeground: AudIoTheme.ink,
-                           page: HomePage(
-                             onNavigateToLibrary: () => _onTabTap(3),
-                             onNavigateToPodcasts: () => _onTabTap(1),
-                           ),
-                         ),
-                        const GoldenSection(
-                           label: 'PODCASTS',
-                           icon: Icons.podcasts_rounded,
-                           panelColor: AudIoTheme.cream,
-                           panelForeground: AudIoTheme.ink,
-                           page: PodcastPage(),
-                         ),
+                         GoldenSection(
+                            label: 'DISCOVER',
+                            icon: Icons.home_rounded,
+                            panelColor: AudIoTheme.red,
+                            panelForeground: AudIoTheme.ink,
+                            page: HomePage(
+                              onNavigateToLibrary: () => _onTabTap(2),
+                              onNavigateToPodcasts: () => _onTabTap(1),
+                            ),
+                          ),
                          const GoldenSection(
-                           label: 'ARTISTS',
-                           icon: Icons.person_rounded,
-                           panelColor: AudIoTheme.red,
-                           panelForeground: AudIoTheme.cream,
-                           page: ArtistPage(),
-                         ),
+                            label: 'PODCASTS',
+                            icon: Icons.podcasts_rounded,
+                            panelColor: AudIoTheme.cream,
+                            panelForeground: AudIoTheme.ink,
+                            page: PodcastPage(),
+                          ),
                          GoldenSection(
                            label: 'LIBRARY',
                            icon: Icons.library_music_rounded,
                            panelColor: AudIoTheme.red,
                            panelForeground: AudIoTheme.cream,
-                           page: ProfilePage(supabaseAvailable: supabaseAvailable),
+                           page: const ProfilePage(),
                          ),
                         const GoldenSection(
                           label: 'SETTINGS',

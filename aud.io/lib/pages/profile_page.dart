@@ -1,18 +1,19 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/models/track.dart';
+import 'package:aud_io/core/models/playlist_model.dart';
 import 'package:aud_io/services/audio_handler.dart';
-import 'package:aud_io/services/local_file_scanner.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
+import 'package:aud_io/services/local_file_scanner.dart';
+import 'package:aud_io/services/spotify_auth_service.dart';
 import 'package:aud_io/services/settings_service.dart';
-import 'package:aud_io/services/web_audio_helper.dart';
 import 'package:aud_io/widgets/track_context_sheet.dart';
+import 'package:aud_io/widgets/proxied_image.dart';
 
 class ProfilePage extends StatelessWidget {
-  final bool supabaseAvailable;
-  const ProfilePage({super.key, this.supabaseAvailable = false});
+  const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,8 +21,9 @@ class ProfilePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AudIoTheme.bg,
       body: Consumer<LocalPlaylistService>(
-        builder: (context, service, _) {
-          return ListView(
+          builder: (context, service, _) {
+            context.watch<LocalFileScanner>();
+            return ListView(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
             children: [
               Text('Your Library', style: TextStyle(
@@ -48,7 +50,13 @@ class ProfilePage extends StatelessWidget {
                   Expanded(child: _buildStatMini('Liked', '${service.favoriteCount}', Icons.favorite_rounded)),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
+
+              _buildLocalMusicSection(context),
+              const SizedBox(height: 24),
+
+              _buildSpotifySection(context),
+              const SizedBox(height: 24),
 
               // Playlists header
               Row(
@@ -67,6 +75,203 @@ class ProfilePage extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildLocalMusicSection(BuildContext context) {
+    final scanner = context.watch<LocalFileScanner>();
+    final handler = context.watch<AppAudioHandler>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Local Music', style: TextStyle(
+              fontSize: 12, color: AudIoTheme.muted, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+            const Spacer(),
+            Text('${scanner.tracks.length} files', style: TextStyle(
+              fontSize: 10, color: AudIoTheme.subtle)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.storage_rounded,
+                label: 'Scan Device',
+                sublabel: scanner.isScanning ? 'Scanning...' : 'Auto-find music',
+                onTap: scanner.isScanning ? null : () => scanner.scan(),
+                accent: AudIoTheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.folder_open_rounded,
+                label: 'Pick Folder',
+                sublabel: 'Choose a directory',
+                onTap: scanner.isScanning ? null : () => scanner.pickDirectory(),
+                accent: AudIoTheme.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.add_circle_outline,
+                label: 'Pick Files',
+                sublabel: 'Select audio files',
+                onTap: scanner.isScanning ? null : () => scanner.pickFiles(),
+                accent: AudIoTheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.delete_sweep_outlined,
+                label: 'Clear',
+                sublabel: 'Remove all local tracks',
+                onTap: scanner.tracks.isEmpty ? null : () => scanner.clear(),
+                accent: AudIoTheme.error,
+              ),
+            ),
+          ],
+        ),
+        if (scanner.tracks.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('Tracks', style: TextStyle(
+            fontSize: 10, color: AudIoTheme.subtle)),
+          const SizedBox(height: 8),
+          ...scanner.tracks.map((track) => _LocalFileTile(
+            track: track,
+            onPlay: () => handler.setQueue(scanner.tracks, startIndex: scanner.tracks.indexOf(track)),
+          )),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildActionCard({
+    required IconData icon,
+    required String label,
+    required String sublabel,
+    VoidCallback? onTap,
+    required Color accent,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 90,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AudIoTheme.surface,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: accent),
+            const Spacer(),
+            Text(label, style: TextStyle(
+              fontSize: 13, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
+            Text(sublabel, style: TextStyle(
+              fontSize: 9, color: AudIoTheme.subtle)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpotifySection(BuildContext context) {
+    final spotify = context.watch<SpotifyAuthService>();
+    final handler = context.watch<AppAudioHandler>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Spotify Import', style: TextStyle(
+              fontSize: 12, color: AudIoTheme.muted, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (!spotify.isLoggedIn)
+          GestureDetector(
+            onTap: () async {
+              final url = Uri.parse(spotify.authUrl);
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.platformDefault);
+              }
+            },
+            child: Container(
+              height: 70,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [const Color(0xFF1DB954).withValues(alpha: 0.2), AudIoTheme.surface],
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Container(width: 36, height: 36,
+                    decoration: BoxDecoration(color: const Color(0xFF1DB954), borderRadius: BorderRadius.circular(18)),
+                    child: const Icon(Icons.music_note_rounded, size: 18, color: Colors.white)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Connect Spotify', style: TextStyle(
+                          fontSize: 14, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
+                        Text('Import playlists', style: TextStyle(
+                          fontSize: 10, color: AudIoTheme.subtle)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AudIoTheme.subtle),
+                ],
+              ),
+            ),
+          )
+        else ...[
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1DB954).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Container(width: 8, height: 8,
+                      decoration: const BoxDecoration(color: Color(0xFF1DB954), shape: BoxShape.circle)),
+                    const SizedBox(width: 6),
+                    Text('Connected', style: TextStyle(
+                      fontSize: 10, color: const Color(0xFF1DB954), fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => spotify.logout(),
+                child: Text('Logout', style: TextStyle(
+                  fontSize: 10, color: AudIoTheme.error, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _SpotifyPlaylistList(spotify: spotify, handler: handler),
+        ],
+      ],
     );
   }
 
@@ -238,14 +443,14 @@ class ProfilePage extends StatelessWidget {
 }
 
 class _PlaylistBentoTile extends StatelessWidget {
-  final Playlist playlist;
+  final PlaylistModel playlist;
   const _PlaylistBentoTile({required this.playlist});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(
-        builder: (_) => _PlaylistDetailPage(playlistId: playlist.id),
+        builder: (_) => _PlaylistDetailPage(playlistId: '${playlist.id}'),
       )),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
@@ -263,11 +468,8 @@ class _PlaylistBentoTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: playlist.tracks.isNotEmpty && playlist.tracks.first.thumbnailUrl != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.network(playlist.tracks.first.thumbnailUrl!, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(Icons.queue_music_rounded, size: 24, color: AudIoTheme.subtle)),
-                    )
+                  ? ProxiedImage(url: playlist.tracks.first.thumbnailUrl!, width: 56, height: 56, borderRadius: BorderRadius.circular(10),
+                    errorBuilder: (_, __, ___) => Icon(Icons.queue_music_rounded, size: 24, color: AudIoTheme.subtle))
                   : Icon(Icons.queue_music_rounded, size: 24, color: AudIoTheme.subtle),
             ),
             const SizedBox(width: 14),
@@ -313,7 +515,7 @@ class _PlaylistDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<LocalPlaylistService>(
       builder: (context, service, _) {
-        final idx = service.playlists.indexWhere((p) => p.id == playlistId);
+        final idx = service.playlists.indexWhere((p) => '${p.id}' == playlistId);
         if (idx == -1) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) Navigator.of(context).pop();
@@ -479,13 +681,10 @@ class _LikedSongsPage extends StatelessWidget {
                           child: Row(
                             children: [
                               if (track.thumbnailUrl != null)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(track.thumbnailUrl!, width: 44, height: 44, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
-                                      decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
-                                      child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle))),
-                                )
+                                ProxiedImage(url: track.thumbnailUrl!, width: 44, height: 44, borderRadius: BorderRadius.circular(8),
+                                  errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
+                                    decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+                                    child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle)))
                               else
                                 Container(width: 44, height: 44,
                                   decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
@@ -525,6 +724,52 @@ class _LikedSongsPage extends StatelessWidget {
   }
 }
 
+class _LocalFileTile extends StatelessWidget {
+  final Track track;
+  final VoidCallback onPlay;
+
+  const _LocalFileTile({required this.track, required this.onPlay});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = track.audioUrl?.split('/').last.split('\\').last ?? track.title;
+    return InkWell(
+      onTap: onPlay,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AudIoTheme.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(width: 36, height: 36,
+              decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+              child: Icon(Icons.music_note_rounded, size: 16, color: AudIoTheme.subtle)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(track.title, style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface,
+                    fontWeight: FontWeight.w500),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Text(name, style: TextStyle(fontSize: 9, color: AudIoTheme.subtle),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            Icon(Icons.play_arrow_rounded, size: 18, color: AudIoTheme.subtle),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PlaylistTrackTile extends StatelessWidget {
   final Track track;
   final int index;
@@ -558,13 +803,10 @@ class _PlaylistTrackTile extends StatelessWidget {
               child: Text('${index + 1}', style: TextStyle(fontSize: 11, color: AudIoTheme.subtle)),
             ),
             if (track.thumbnailUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(track.thumbnailUrl!, width: 44, height: 44, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
-                    decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
-                    child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle))),
-              )
+              ProxiedImage(url: track.thumbnailUrl!, width: 44, height: 44, borderRadius: BorderRadius.circular(8),
+                errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
+                  decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+                  child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle)))
             else
               Container(width: 44, height: 44,
                 decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
@@ -591,5 +833,131 @@ class _PlaylistTrackTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _SpotifyPlaylistList extends StatefulWidget {
+  final SpotifyAuthService spotify;
+  final AppAudioHandler handler;
+  const _SpotifyPlaylistList({required this.spotify, required this.handler});
+
+  @override
+  State<_SpotifyPlaylistList> createState() => _SpotifyPlaylistListState();
+}
+
+class _SpotifyPlaylistListState extends State<_SpotifyPlaylistList> {
+  List<SpotifyPlaylist>? _playlists;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlaylists();
+  }
+
+  Future<void> _loadPlaylists() async {
+    final playlists = await widget.spotify.getPlaylists();
+    if (mounted) setState(() { _playlists = playlists; _loading = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Container(
+        height: 60,
+        decoration: BoxDecoration(color: AudIoTheme.surface, borderRadius: BorderRadius.circular(14)),
+        child: Center(child: SizedBox(width: 18, height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2, color: AudIoTheme.subtle))),
+      );
+    }
+    if (_playlists == null || _playlists!.isEmpty) {
+      return Container(
+        height: 60,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: AudIoTheme.surface, borderRadius: BorderRadius.circular(14)),
+        child: Center(child: Text('No playlists found', style: TextStyle(fontSize: 11, color: AudIoTheme.subtle))),
+      );
+    }
+    return Column(
+      children: [
+        ..._playlists!.map((p) => GestureDetector(
+          onTap: () => _importPlaylist(p),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AudIoTheme.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                if (p.image != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(p.image!, width: 44, height: 44, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
+                        color: AudIoTheme.surfaceVariant,
+                        child: Icon(Icons.queue_music_rounded, size: 18, color: AudIoTheme.subtle))),
+                  )
+                else
+                  Container(width: 44, height: 44,
+                    decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+                    child: Icon(Icons.queue_music_rounded, size: 18, color: AudIoTheme.subtle)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(p.name, style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface,
+                        fontWeight: FontWeight.w500),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text('${p.trackCount} tracks · ${p.owner}',
+                        style: TextStyle(fontSize: 10, color: AudIoTheme.subtle),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                Icon(Icons.download_rounded, size: 16, color: AudIoTheme.primary),
+              ],
+            ),
+          ),
+        )),
+      ],
+    );
+  }
+
+  Future<void> _importPlaylist(SpotifyPlaylist playlist) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Importing "${playlist.name}"...'),
+      duration: const Duration(seconds: 2),
+      backgroundColor: AudIoTheme.surfaceVariant,
+    ));
+
+    final tracks = await widget.spotify.getPlaylistTracks(playlist.id);
+    if (tracks.isEmpty || !mounted) return;
+
+    final localPlaylistService = context.read<LocalPlaylistService>();
+
+    for (final st in tracks) {
+      final track = Track(
+        id: 'spotify_${st.id}',
+        title: st.title,
+        artist: st.artist,
+        album: st.album,
+        thumbnailUrl: st.artwork,
+        duration: st.duration,
+        source: TrackSource.soundcloud,
+      );
+      await localPlaylistService.addToPlaylist(playlist.name, track);
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Imported ${tracks.length} tracks into "${playlist.name}"'),
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.green,
+      ));
+    }
   }
 }

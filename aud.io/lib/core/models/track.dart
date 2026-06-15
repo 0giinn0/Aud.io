@@ -25,10 +25,10 @@ class Track {
     this.artistUrl,
   });
 
-  factory Track.fromLocalFile(dynamic file) {
-    final path = file.path as String;
-    final name = path.split('/').last;
-    final baseName = name.substring(0, name.lastIndexOf('.'));
+  factory Track.fromLocalFile(String path) {
+    final name = path.split('/').last.split('\\').last;
+    final dot = name.lastIndexOf('.');
+    final baseName = dot > 0 ? name.substring(0, dot) : name;
     return Track(
       id: 'local_${path.hashCode}',
       title: baseName,
@@ -37,6 +37,26 @@ class Track {
       audioUrl: path,
       duration: 0,
       source: TrackSource.local,
+    );
+  }
+
+  factory Track.fromApiJson(Map<String, dynamic> json) {
+    final source = switch ((json['source'] as String? ?? '').toLowerCase()) {
+      'youtube' || 'yt' => TrackSource.youtube,
+      'soundcloud' || 'sc' => TrackSource.soundcloud,
+      'podcast' || 'pod' => TrackSource.podcast,
+      'local' => TrackSource.local,
+      _ => TrackSource.soundcloud,
+    };
+    return Track(
+      id: json['id']?.toString() ?? '',
+      title: json['title'] ?? json['name'] ?? '',
+      artist: json['artist'] ?? json['artistDisplay'],
+      album: json['album'],
+      thumbnailUrl: json['artworkUrl'] ?? json['thumbnailUrl'] ?? json['thumbnail'],
+      audioUrl: json['audioUrl'] ?? json['url'],
+      duration: json['duration'] is int ? json['duration'] : (int.tryParse(json['duration']?.toString() ?? '') ?? 0),
+      source: source,
     );
   }
 
