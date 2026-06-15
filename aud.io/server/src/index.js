@@ -53,6 +53,10 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/', (req, res) => {
+  res.json({ service: 'aud.io-server', status: 'running' });
+});
+
 app.use('/api', apiRouter);
 app.use('/health', healthRouter);
 
