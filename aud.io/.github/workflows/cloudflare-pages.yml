@@ -25,9 +25,6 @@ jobs:
           flutter pub get
           flutter build web --release --dart-define=BASE_URL=
 
-      - name: Copy Pages Functions handler
-        run: cp aud.io/_worker.js aud.io/build/web/_worker.js
-
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
