@@ -10,7 +10,7 @@ class ApiService {
   static String get baseUrl {
     const envUrl = String.fromEnvironment('BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
-    if (kIsWeb) return 'https://aud-io-1.onrender.com';
+    if (kIsWeb) return 'https://aud-io.onrender.com';
     return 'http://10.0.2.2:3000';
   }
 

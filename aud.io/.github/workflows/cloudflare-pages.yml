@@ -23,7 +23,7 @@ jobs:
         run: |
           cd aud.io
           flutter pub get
-          flutter build web --release --dart-define=BASE_URL=https://aud-io-1.onrender.com
+          flutter build web --release --dart-define=BASE_URL=https://aud-io.onrender.com
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
