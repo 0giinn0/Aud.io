@@ -259,6 +259,135 @@ router.get('/proxy-image', async (req, res) => {
   }
 });
 
+// ===== YTMUSIC PROXY ROUTES (web can't hit music.youtube.com due to CORS) =====
+
+const YTMUSIC_CONTEXT = {
+  context: {
+    client: {
+      hl: 'en',
+      gl: 'US',
+      clientName: 'WEB_REMIX',
+      clientVersion: '1.20240101.00.00',
+    },
+  },
+};
+
+router.post('/ytmusic/search', cacheMiddleware(300), async (req, res, next) => {
+  try {
+    const { query, limit = 20 } = req.body;
+    if (!query) {
+      res.status(400).json({ error: true, message: 'Missing query' });
+      return;
+    }
+    const resp = await axios.post(
+      'https://music.youtube.com/youtubei/v1/search?alt=json&key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      { ...YTMUSIC_CONTEXT, query, params: 'EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D' },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Origin: 'https://music.youtube.com',
+          Referer: 'https://music.youtube.com/',
+        },
+        timeout: 15000,
+      }
+    );
+    const body = resp.data;
+    const sections = body?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
+    const items = [];
+    for (const section of sections) {
+      const contents = section?.musicShelfRenderer?.contents || section?.musicPlaylistShelfRenderer?.contents || [];
+      for (const c of contents) {
+        const song = c?.musicResponsiveListItemRenderer;
+        if (!song) continue;
+        const title = song.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+        const artist = song.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+        const videoId = song.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+        const durationText = song.flexColumns?.[2]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+        const thumbnails = song.thumbnail?.musicThumbnailThumbnailRenderer?.thumbnails || [];
+        if (!title || !videoId) continue;
+        let duration = 0;
+        if (durationText) {
+          const parts = durationText.split(':').map(Number);
+          if (parts.length === 2) duration = parts[0] * 60 + parts[1];
+          else if (parts.length === 3) duration = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        }
+        items.push({
+          videoId,
+          title,
+          artist: artist || 'Unknown',
+          thumbnailUrl: thumbnails[0]?.url || null,
+          duration,
+        });
+        if (items.length >= limit) break;
+      }
+      if (items.length >= limit) break;
+    }
+    res.json({ results: items, total: items.length });
+  } catch (err) {
+    logger.error({ err: err.message }, 'YTMusic search proxy failed');
+    res.status(502).json({ error: true, message: 'YTMusic search failed' });
+  }
+});
+
+router.post('/ytmusic/videos', cacheMiddleware(300), async (req, res, next) => {
+  try {
+    const { query, limit = 20 } = req.body;
+    if (!query) {
+      res.status(400).json({ error: true, message: 'Missing query' });
+      return;
+    }
+    const resp = await axios.post(
+      'https://music.youtube.com/youtubei/v1/search?alt=json&key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      { ...YTMUSIC_CONTEXT, query, params: 'EgIQAQ%3D%3D' },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Origin: 'https://music.youtube.com',
+          Referer: 'https://music.youtube.com/',
+        },
+        timeout: 15000,
+      }
+    );
+    const body = resp.data;
+    const sections = body?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
+    const items = [];
+    for (const section of sections) {
+      const contents = section?.musicShelfRenderer?.contents || [];
+      for (const c of contents) {
+        const song = c?.musicResponsiveListItemRenderer;
+        if (!song) continue;
+        const title = song.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+        const artist = song.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+        const videoId = song.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+        const durationText = song.flexColumns?.[2]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+        const thumbnails = song.thumbnail?.musicThumbnailThumbnailRenderer?.thumbnails || [];
+        if (!title || !videoId) continue;
+        let duration = 0;
+        if (durationText) {
+          const parts = durationText.split(':').map(Number);
+          if (parts.length === 2) duration = parts[0] * 60 + parts[1];
+          else if (parts.length === 3) duration = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        }
+        items.push({
+          videoId,
+          title,
+          artist: artist || 'Unknown',
+          thumbnailUrl: thumbnails[0]?.url || null,
+          duration,
+        });
+        if (items.length >= limit) break;
+      }
+      if (items.length >= limit) break;
+    }
+    res.json({ results: items, total: items.length });
+  } catch (err) {
+    logger.error({ err: err.message }, 'YTMusic videos proxy failed');
+    res.status(502).json({ error: true, message: 'YTMusic videos search failed' });
+  }
+});
+
 // ===== PODCAST ROUTES =====
 
 router.get('/podcasts/search', cacheMiddleware(120), async (req, res, next) => {

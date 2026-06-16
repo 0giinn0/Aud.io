@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:dart_ytmusic_api/yt_music.dart';
 import 'package:aud_io/core/models/track.dart';
+import 'api_service.dart';
 
 class YouTubeMusicService {
   YouTubeMusicService._();
@@ -12,6 +15,11 @@ class YouTubeMusicService {
 
   static Future<void> initialize() async {
     if (_instance._initialized) return;
+    if (kIsWeb) {
+      _instance._initialized = true;
+      debugPrint('aud.io: YTMusic initialized (web: using server proxy)');
+      return;
+    }
     try {
       _instance._ytmusic = YTMusic();
       await _instance._ytmusic!.initialize();
@@ -26,6 +34,11 @@ class YouTubeMusicService {
 
   static Future<List<Track>> searchSongs(String query, {int limit = 20}) async {
     if (!_instance._initialized) await initialize();
+
+    if (kIsWeb) {
+      return _proxySearch('/api/ytmusic/search', query, limit);
+    }
+
     if (_instance._ytmusic == null) return [];
 
     try {
@@ -51,6 +64,11 @@ class YouTubeMusicService {
 
   static Future<List<Track>> searchVideos(String query, {int limit = 20}) async {
     if (!_instance._initialized) await initialize();
+
+    if (kIsWeb) {
+      return _proxySearch('/api/ytmusic/videos', query, limit);
+    }
+
     if (_instance._ytmusic == null) return [];
 
     try {
@@ -70,6 +88,34 @@ class YouTubeMusicService {
       return tracks;
     } catch (e) {
       debugPrint('aud.io: YTMusic videos error: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Track>> _proxySearch(String path, String query, int limit) async {
+    try {
+      final resp = await http
+          .post(
+            Uri.parse('${ApiService.baseUrl}$path'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'query': query, 'limit': limit}),
+          )
+          .timeout(const Duration(seconds: 15));
+      if (resp.statusCode != 200) return [];
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results
+          .map((r) => Track(
+                id: r['videoId'] ?? '',
+                title: r['title'] ?? '',
+                artist: r['artist'] ?? 'Unknown',
+                thumbnailUrl: r['thumbnailUrl'],
+                duration: r['duration'] ?? 0,
+                source: TrackSource.youtube,
+              ))
+          .toList();
+    } catch (e) {
+      debugPrint('aud.io: YTMusic proxy search error: $e');
       return [];
     }
   }
