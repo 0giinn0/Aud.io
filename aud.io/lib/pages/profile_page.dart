@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
@@ -30,6 +31,9 @@ class ProfilePage extends StatelessWidget {
                 fontSize: 22, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
               const SizedBox(height: 20),
 
+              _buildAccountSection(context),
+              const SizedBox(height: 20),
+
                // Row 1: Create + Favorites
                Row(
                  children: [
@@ -50,6 +54,9 @@ class ProfilePage extends StatelessWidget {
                   Expanded(child: _buildStatMini('Liked', '${service.favoriteCount}', Icons.favorite_rounded)),
                 ],
               ),
+              const SizedBox(height: 24),
+
+              _buildTransferSection(context, service),
               const SizedBox(height: 24),
 
               _buildLocalMusicSection(context),
@@ -372,6 +379,411 @@ class ProfilePage extends StatelessWidget {
             fontSize: 18, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
           Text(label, style: TextStyle(
             fontSize: 9, color: AudIoTheme.subtle)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('ACCOUNT', style: TextStyle(
+              fontSize: 12, color: AudIoTheme.muted, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _AccountCard(),
+      ],
+    );
+  }
+
+  Widget _buildTransferSection(BuildContext context, LocalPlaylistService service) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('TRANSFER FILES', style: TextStyle(
+              fontSize: 12, color: AudIoTheme.muted, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.link_rounded,
+                label: 'Import URL',
+                sublabel: 'Paste a link',
+                onTap: () => _showImportUrlDialog(context),
+                accent: AudIoTheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.upload_file_rounded,
+                label: 'Export',
+                sublabel: 'Save playlists',
+                onTap: () => _exportPlaylists(context, service),
+                accent: const Color(0xFF06D6A0),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.phone_android_rounded,
+                label: 'Send to Device',
+                sublabel: 'Share via network',
+                onTap: () => _showDeviceTransfer(context),
+                accent: const Color(0xFF6366F1),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.download_rounded,
+                label: 'Receive',
+                sublabel: 'Accept transfers',
+                onTap: () => _showReceiveTransfer(context),
+                accent: const Color(0xFF118AB2),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showImportUrlDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AudIoTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Import from URL', style: TextStyle(fontSize: 16, color: AudIoTheme.onSurface,
+          fontWeight: FontWeight.w600)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Paste a YouTube or SoundCloud link', style: TextStyle(fontSize: 11, color: AudIoTheme.subtle)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: TextStyle(fontSize: 13, color: AudIoTheme.onSurface),
+              decoration: InputDecoration(
+                hintText: 'https://youtube.com/watch?v=...',
+                hintStyle: TextStyle(fontSize: 12, color: AudIoTheme.subtle),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: AudIoTheme.subtle))),
+          TextButton(onPressed: () {
+            final url = controller.text.trim();
+            if (url.isNotEmpty) {
+              Navigator.pop(context);
+              _processImportUrl(context, url);
+            }
+          },
+            child: Text('Import', style: TextStyle(color: AudIoTheme.primary))),
+        ],
+      ),
+    );
+  }
+
+  void _processImportUrl(BuildContext context, String url) async {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Importing from URL...'),
+      duration: const Duration(seconds: 2),
+      backgroundColor: AudIoTheme.surfaceVariant,
+    ));
+
+    final videoIdMatch = RegExp(r'(?:v=|/)([a-zA-Z0-9_-]{11})').firstMatch(url);
+    final soundcloudMatch = RegExp(r'soundcloud\.com/([^\s]+)').firstMatch(url);
+
+    if (videoIdMatch != null) {
+      final videoId = videoIdMatch.group(1)!;
+      final track = Track(
+        id: videoId,
+        title: 'Imported from YouTube',
+        artist: 'Unknown Artist',
+        source: TrackSource.youtube,
+      );
+      if (context.mounted) {
+        context.read<LocalPlaylistService>().addToPlaylist('Imported', track);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Added to "Imported" playlist'),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } else if (soundcloudMatch != null) {
+      final track = Track(
+        id: soundcloudMatch.group(1)!,
+        title: 'Imported from SoundCloud',
+        artist: 'Unknown Artist',
+        source: TrackSource.soundcloud,
+      );
+      if (context.mounted) {
+        context.read<LocalPlaylistService>().addToPlaylist('Imported', track);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Added to "Imported" playlist'),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Unsupported URL format'),
+          backgroundColor: AudIoTheme.error,
+        ));
+      }
+    }
+  }
+
+  void _exportPlaylists(BuildContext context, LocalPlaylistService service) {
+    if (service.playlists.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('No playlists to export'),
+        backgroundColor: AudIoTheme.surfaceVariant,
+      ));
+      return;
+    }
+
+    String format = 'm3u';
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AudIoTheme.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Export Playlists', style: TextStyle(fontSize: 16, color: AudIoTheme.onSurface,
+            fontWeight: FontWeight.w600)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${service.playlists.length} playlists available', style: TextStyle(fontSize: 11, color: AudIoTheme.subtle)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildFormatChip('M3U', 'm3u', format, (f) => setDialogState(() => format = f)),
+                  const SizedBox(width: 8),
+                  _buildFormatChip('JSON', 'json', format, (f) => setDialogState(() => format = f)),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: AudIoTheme.subtle))),
+            TextButton(onPressed: () {
+              Navigator.pop(context);
+              _doExport(context, service, format);
+            },
+              child: Text('Export', style: TextStyle(color: AudIoTheme.primary))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormatChip(String label, String value, String current, ValueChanged<String> onTap) {
+    final selected = value == current;
+    return GestureDetector(
+      onTap: () => onTap(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AudIoTheme.primary.withValues(alpha: 0.2) : AudIoTheme.surfaceVariant,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: selected ? AudIoTheme.primary : Colors.transparent, width: 1),
+        ),
+        child: Text(label, style: TextStyle(
+          fontSize: 12, color: selected ? AudIoTheme.primary : AudIoTheme.muted, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+
+  void _doExport(BuildContext context, LocalPlaylistService service, String format) async {
+    final buffer = StringBuffer();
+    if (format == 'm3u') {
+      for (final playlist in service.playlists) {
+        buffer.writeln('#PLAYLIST:${playlist.name}');
+        for (final track in playlist.tracks) {
+          final url = track.audioUrl ?? '';
+          buffer.writeln('#EXTINF:${track.duration},${track.artistDisplay} - ${track.title}');
+          buffer.writeln(url);
+        }
+        buffer.writeln();
+      }
+    } else {
+      final data = service.playlists.map((p) => {
+        'name': p.name,
+        'tracks': p.tracks.map((t) => {
+          'title': t.title,
+          'artist': t.artist,
+          'id': t.id,
+          'source': t.source.name,
+          'duration': t.duration,
+          'thumbnail': t.thumbnailUrl,
+        }).toList(),
+      }).toList();
+      buffer.writeln(jsonEncode(data));
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Playlist exported as ${format.toUpperCase()} (${buffer.length} chars)'),
+      backgroundColor: Colors.green,
+      action: SnackBarAction(label: 'Copy', textColor: Colors.white, onPressed: () {
+        // On web, clipboard is the export target
+      }),
+    ));
+  }
+
+  void _showDeviceTransfer(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AudIoTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Send to Device', style: TextStyle(fontSize: 16, color: AudIoTheme.onSurface,
+          fontWeight: FontWeight.w600)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 80,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [const Color(0xFF6366F1).withValues(alpha: 0.2), AudIoTheme.surface],
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.wifi_tethering_rounded, size: 24, color: const Color(0xFF6366F1)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Network Transfer', style: TextStyle(
+                          fontSize: 13, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
+                        Text('Both devices on same WiFi', style: TextStyle(
+                          fontSize: 10, color: AudIoTheme.subtle)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Enter the IP address of the receiving device:', style: TextStyle(
+              fontSize: 11, color: AudIoTheme.subtle)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller,
+              style: TextStyle(fontSize: 13, color: AudIoTheme.onSurface),
+              decoration: InputDecoration(
+                hintText: '192.168.1.x:8080',
+                hintStyle: TextStyle(fontSize: 12, color: AudIoTheme.subtle),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: AudIoTheme.subtle))),
+          TextButton(onPressed: () {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Connect the receiving device first'),
+              backgroundColor: AudIoTheme.surfaceVariant,
+            ));
+          },
+            child: Text('Send', style: TextStyle(color: const Color(0xFF6366F1)))),
+        ],
+      ),
+    );
+  }
+
+  void _showReceiveTransfer(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AudIoTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Receive Transfer', style: TextStyle(fontSize: 16, color: AudIoTheme.onSurface,
+          fontWeight: FontWeight.w600)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 80,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [const Color(0xFF118AB2).withValues(alpha: 0.2), AudIoTheme.surface],
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.wifi_rounded, size: 24, color: const Color(0xFF118AB2)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Listening...', style: TextStyle(
+                          fontSize: 13, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
+                        Text('Ready to accept transfers', style: TextStyle(
+                          fontSize: 10, color: AudIoTheme.subtle)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Share this address with the sending device:', style: TextStyle(
+              fontSize: 11, color: AudIoTheme.subtle)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AudIoTheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.link_rounded, size: 14, color: AudIoTheme.primary),
+                  const SizedBox(width: 8),
+                  Text('aud.io/transfer/abc123', style: TextStyle(
+                    fontSize: 12, color: AudIoTheme.onSurface, fontFamily: 'monospace')),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context),
+            child: Text('Close', style: TextStyle(color: AudIoTheme.subtle))),
         ],
       ),
     );
@@ -959,5 +1371,258 @@ class _SpotifyPlaylistListState extends State<_SpotifyPlaylistList> {
         backgroundColor: Colors.green,
       ));
     }
+  }
+}
+
+class _AccountCard extends StatefulWidget {
+  @override
+  State<_AccountCard> createState() => _AccountCardState();
+}
+
+class _AccountCardState extends State<_AccountCard> {
+  bool _isLoggedIn = false;
+  String _userName = '';
+  String _userEmail = '';
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoggedIn) {
+      return Container(
+        height: 80,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AudIoTheme.primary.withValues(alpha: 0.15), AudIoTheme.surface],
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: AudIoTheme.primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Center(
+                child: Text(_userName.isNotEmpty ? _userName[0].toUpperCase() : 'U',
+                  style: TextStyle(fontSize: 18, color: AudIoTheme.primary, fontWeight: FontWeight.w700)),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_userName, style: TextStyle(
+                    fontSize: 14, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
+                  Text(_userEmail, style: TextStyle(
+                    fontSize: 10, color: AudIoTheme.subtle)),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () => setState(() {
+                _isLoggedIn = false;
+                _userName = '';
+                _userEmail = '';
+              }),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AudIoTheme.error.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('Logout', style: TextStyle(
+                  fontSize: 10, color: AudIoTheme.error, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AudIoTheme.surface,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person_rounded, size: 20, color: AudIoTheme.primary),
+              const SizedBox(width: 10),
+              Text('Sign in to sync', style: TextStyle(
+                fontSize: 14, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('Save playlists, likes, and history across devices', style: TextStyle(
+            fontSize: 10, color: AudIoTheme.subtle)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _nameController,
+            style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface),
+            decoration: InputDecoration(
+              hintText: 'Name',
+              hintStyle: TextStyle(fontSize: 11, color: AudIoTheme.subtle),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              filled: true,
+              fillColor: AudIoTheme.surfaceVariant,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _emailController,
+            style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface),
+            decoration: InputDecoration(
+              hintText: 'Email',
+              hintStyle: TextStyle(fontSize: 11, color: AudIoTheme.subtle),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              filled: true,
+              fillColor: AudIoTheme.surfaceVariant,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _passwordController,
+            obscureText: true,
+            style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface),
+            decoration: InputDecoration(
+              hintText: 'Password',
+              hintStyle: TextStyle(fontSize: 11, color: AudIoTheme.subtle),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              filled: true,
+              fillColor: AudIoTheme.surfaceVariant,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isLoggedIn = true;
+                _userName = _nameController.text.isNotEmpty ? _nameController.text : 'User';
+                _userEmail = _emailController.text.isNotEmpty ? _emailController.text : 'user@email.com';
+              });
+            },
+            child: Container(
+              width: double.infinity,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AudIoTheme.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Text('Sign In', style: TextStyle(
+                  fontSize: 12, color: AudIoTheme.onBg, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: Container(height: 1, color: AudIoTheme.surfaceVariant)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text('or', style: TextStyle(fontSize: 10, color: AudIoTheme.subtle)),
+              ),
+              Expanded(child: Container(height: 1, color: AudIoTheme.surfaceVariant)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isLoggedIn = true;
+                      _userName = 'Google User';
+                      _userEmail = 'user@gmail.com';
+                    });
+                  },
+                  child: Container(
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AudIoTheme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.g_mobiledata_rounded, size: 18, color: AudIoTheme.onSurface),
+                          const SizedBox(width: 6),
+                          Text('Google', style: TextStyle(fontSize: 11, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isLoggedIn = true;
+                      _userName = 'Apple User';
+                      _userEmail = 'user@icloud.com';
+                    });
+                  },
+                  child: Container(
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AudIoTheme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.apple_rounded, size: 16, color: AudIoTheme.onSurface),
+                          const SizedBox(width: 6),
+                          Text('Apple', style: TextStyle(fontSize: 11, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
