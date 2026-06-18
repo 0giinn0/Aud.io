@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:aud_io/core/theme/aud_io_theme.dart';
+import 'package:aud_io/core/theme/theme_presets.dart';
 import 'package:aud_io/services/settings_service.dart';
 import 'package:aud_io/services/download_service.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
@@ -23,6 +24,9 @@ class SettingsPage extends StatelessWidget {
           Text('Settings', style: TextStyle(
             fontSize: 22, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
+
+          _buildThemePicker(context),
+          const SizedBox(height: 12),
 
           // Row 1: Quality (full width - theme removed, always dark)
           _buildQualityCard(context),
@@ -56,6 +60,123 @@ class SettingsPage extends StatelessWidget {
           const _ServerStatusCard(),
         ],
       ),
+    );
+  }
+
+  Widget _buildThemePicker(BuildContext context) {
+    final settings = context.watch<SettingsService>();
+    final currentId = settings.themeId;
+    final darkThemes = ThemePresets.all.where((p) => p.brightness == Brightness.dark).toList();
+    final lightThemes = ThemePresets.all.where((p) => p.brightness == Brightness.light).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('THEME', style: TextStyle(
+          fontSize: 12, color: AudIoTheme.muted, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+        const SizedBox(height: 12),
+        Text('Dark', style: TextStyle(fontSize: 10, color: AudIoTheme.subtle, letterSpacing: 1)),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 56,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: darkThemes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, i) {
+              final p = darkThemes[i];
+              final selected = p.id == currentId;
+              return GestureDetector(
+                onTap: () => settings.setThemeId(p.id),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 90,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: selected ? p.primary.withValues(alpha: 0.2) : AudIoTheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: selected ? p.primary : AudIoTheme.surfaceVariant,
+                      width: selected ? 2 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Container(width: 12, height: 12,
+                            decoration: BoxDecoration(color: p.preview, borderRadius: BorderRadius.circular(6)),
+                          ),
+                          const SizedBox(width: 6),
+                          if (selected) Icon(Icons.check_rounded, size: 12, color: p.primary)
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(p.name, style: TextStyle(
+                        fontSize: 10, color: selected ? AudIoTheme.onSurface : AudIoTheme.muted,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text('Light', style: TextStyle(fontSize: 10, color: AudIoTheme.subtle, letterSpacing: 1)),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 56,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: lightThemes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, i) {
+              final p = lightThemes[i];
+              final selected = p.id == currentId;
+              return GestureDetector(
+                onTap: () => settings.setThemeId(p.id),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 90,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: selected ? p.primary.withValues(alpha: 0.2) : AudIoTheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: selected ? p.primary : AudIoTheme.surfaceVariant,
+                      width: selected ? 2 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Container(width: 12, height: 12,
+                            decoration: BoxDecoration(color: p.preview, borderRadius: BorderRadius.circular(6)),
+                          ),
+                          const SizedBox(width: 6),
+                          if (selected) Icon(Icons.check_rounded, size: 12, color: p.primary),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(p.name, style: TextStyle(
+                        fontSize: 10, color: selected ? AudIoTheme.onSurface : AudIoTheme.muted,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -141,37 +262,6 @@ class SettingsPage extends StatelessWidget {
 
   // TODO: re-enable this when theme selection is needed
   // ignore: unused_element
-  Widget _buildThemeCard(BuildContext context) {
-    return Consumer<SettingsService>(
-      builder: (_, s, __) => _BentoCard(
-        height: 130,
-        gradient: [AudIoTheme.surface, AudIoTheme.surfaceVariant],
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(s.lightMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                  size: 20, color: AudIoTheme.primary),
-                const Spacer(),
-                Switch(
-                  value: !s.lightMode,
-                  onChanged: (v) => s.setLightMode(!v),
-                  activeColor: AudIoTheme.primary,
-                ),
-              ],
-            ),
-            const Spacer(),
-            Text('Theme', style: TextStyle(
-              fontSize: 14, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
-            Text(s.lightMode ? 'Light mode' : 'Dark mode', style: TextStyle(
-              fontSize: 10, color: AudIoTheme.subtle)),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildQualityCard(BuildContext context) {
     return Consumer<SettingsService>(
       builder: (_, s, __) => _BentoCard(

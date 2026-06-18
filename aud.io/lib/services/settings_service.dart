@@ -7,14 +7,14 @@ class SettingsService extends ChangeNotifier {
   static const _kCustomDisplayPath = 'custom_display_path';
   static const _kAudioQuality = 'audio_quality';
   static const _kAutoDownload = 'auto_download';
-  static const _kLightMode = 'light_mode';
+  static const _kThemeId = 'theme_id';
   static const _kDownloadDir = 'download_dir';
 
   bool _offlineMode = false;
   String? _customDisplayPath;
   String _audioQuality = '192';
   bool _autoDownload = false;
-  bool _lightMode = false;
+  String _themeId = 'ink_red';
   String? _downloadDir;
   bool _initialized = false;
 
@@ -22,9 +22,14 @@ class SettingsService extends ChangeNotifier {
   String? get customDisplayPath => _customDisplayPath;
   String get audioQuality => _audioQuality;
   bool get autoDownload => _autoDownload;
-  bool get lightMode => _lightMode;
+  String get themeId => _themeId;
   String? get downloadDir => _downloadDir;
   bool get initialized => _initialized;
+  bool get lightMode => !_isDarkTheme(_themeId);
+
+  bool _isDarkTheme(String id) {
+    return id != 'cream_red' && id != 'pure_white' && id != 'warm_sand';
+  }
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -32,14 +37,13 @@ class SettingsService extends ChangeNotifier {
     _customDisplayPath = prefs.getString(_kCustomDisplayPath);
     _audioQuality = prefs.getString(_kAudioQuality) ?? '192';
     _autoDownload = prefs.getBool(_kAutoDownload) ?? false;
-    _lightMode = prefs.getBool(_kLightMode) ?? false;
+    _themeId = prefs.getString(_kThemeId) ?? 'ink_red';
     _downloadDir = prefs.getString(_kDownloadDir);
     _initialized = true;
     notifyListeners();
   }
 
   void initSync() {
-    // Fire-and-forget async init; default values are safe for immediate use
     init();
   }
 
@@ -75,10 +79,10 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setLightMode(bool value) async {
-    _lightMode = value;
+  Future<void> setThemeId(String id) async {
+    _themeId = id;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kLightMode, value);
+    await prefs.setString(_kThemeId, id);
     notifyListeners();
   }
 
@@ -98,7 +102,7 @@ class SettingsService extends ChangeNotifier {
     _customDisplayPath = null;
     _audioQuality = '192';
     _autoDownload = false;
-    _lightMode = false;
+    _themeId = 'ink_red';
     _downloadDir = null;
     notifyListeners();
   }

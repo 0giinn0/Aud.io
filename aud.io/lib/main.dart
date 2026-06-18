@@ -8,6 +8,7 @@ import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/theme/app_theme.dart';
+import 'package:aud_io/core/theme/theme_presets.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/music_library.dart';
 import 'package:aud_io/services/download_service.dart';
@@ -156,14 +157,15 @@ class _AppView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<SettingsService>(
       builder: (context, settings, _) {
-        final isDark = !settings.lightMode;
-        AudIoTheme.setDarkMode(isDark);
+        final preset = ThemePresets.all.firstWhere(
+          (p) => p.id == settings.themeId,
+          orElse: () => ThemePresets.inkRed,
+        );
+        AudIoTheme.setTheme(preset);
         return MaterialApp(
           title: 'aud.io',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: settings.lightMode ? ThemeMode.light : ThemeMode.dark,
+          theme: AppTheme.fromPreset(preset),
           home: const AppShell(),
         );
       },
