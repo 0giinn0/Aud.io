@@ -1,105 +1,104 @@
 # aud.io
 
-A production-ready streaming music player with YouTube/SoundCloud search, local file scanning, audio reactive visualization, download/offline mode, playlist/favorites, dark/light mode, bento box UI design, instrument builder, podcast streaming, and optional Supabase-backed social features.
+A streaming music player built with Flutter — YouTube Music, SoundCloud, podcasts, local files, Spotify import, and 7 theme presets. Bento box UI with golden spiral navigation.
+
+## Live
+
+- **Web**: https://aud-io-web.pages.dev
+- **Server**: https://aud-io.onrender.com
 
 ## Features
 
-- **Multi-source search**: YouTube (via InnerTube), SoundCloud, Free Music Archive (16,800+ CC tracks)
-- **Podcast streaming**: Podcast Index API (search, trending, episodes via RSS)
-- **Local files**: Scan device for audio files, play offline
-- **Bento box UI**: Mixed-size rounded cards with gradients, 16px radius, 12px gaps
-- **Audio visualization**: Real-time frequency bars + particle effects
-- **Offline downloads**: yt-dlp powered MP3 downloads
-- **Playlists & favorites**: Local + Supabase sync
-- **Dark/light theme**: Dynamic runtime theme switching
-- **Instrument Builder**: Web Audio API oscillators (sine/square/sawtooth/triangle)
-- **Social features** (optional): Profiles, follows, comments, listening history via Supabase
+- **Multi-source search** — YouTube Music (via InnerTube proxy), SoundCloud
+- **Podcast streaming** — Podcast Index API (search, trending, episodes via RSS)
+- **Local file scanning** — VLC-style auto-scan of device music directories, folder picker, file picker
+- **Spotify import** — OAuth login, fetch playlists, one-tap import to local library
+- **7 theme presets** — Ink & Red, Black & Grey, Black & Gold, Midnight Blue, Cream & Red, Pure White, Warm Sand
+- **Golden spiral navigation** — 4-tab mathematical layout inspired by the golden ratio
+- **Bento box UI** — Mixed-size rounded cards with gradients, Fibonacci spacing scale
+- **Offline downloads** — yt-dlp powered MP3 downloads via server proxy
+- **Playlists & favorites** — Local persistence with Hive
+- **Transfer files** — Import from URL, export playlists (M3U/JSON), device-to-device transfer
+- **Account login** — Email/password + Google/Apple social login UI
 
 ## Architecture
 
 ```
-aud.io/
-├── lib/                    # Flutter app (Dart)
-│   ├── main.dart           # App entry, 6-tab navigation
-│   ├── pages/              # Home, Podcasts, Create, Profile, Settings
-│   ├── services/           # API, audio handler, download, auth, DB
-│   ├── widgets/            # Reusable UI (mini player, visualizer, etc.)
-│   └── core/               # Models, theme
-├── server/                 # Node.js proxy server
+├── lib/                        # Flutter app (Dart)
+│   ├── main.dart               # App entry, providers, navigation shell
+│   ├── pages/                  # Home, Podcasts, Library, Settings, Now Playing
+│   ├── services/               # API, audio handler, download, auth, scanner
+│   ├── widgets/                # Golden spiral nav, mini player, proxied image
+│   └── core/
+│       ├── models/             # Track, Playlist, Podcast
+│       └── theme/              # Theme presets, AppTheme, AudIoTheme
+├── server/                     # Node.js API server
 │   ├── src/
-│   │   ├── index.js        # Express + CORS + rate limiting
-│   │   ├── routes/api.js   # /api/search, /api/stream, /api/download
-│   │   ├── services/       # youtube.js, soundcloud.js, fma.js, podcast.js
-│   │   └── config.js       # dotenv config
-│   ├── Dockerfile          # Render.com deployment
-│   └── render.yaml         # One-click deploy config
-└── supabase/               # PostgreSQL schema + RLS
+│   │   ├── index.js            # Express + CORS + rate limiting
+│   │   ├── routes/api.js       # /api/search, /api/stream, /api/ytmusic/*, /api/spotify/*
+│   │   ├── services/           # soundcloud.js, podcast.js
+│   │   └── config.js           # Environment config
+│   └── Dockerfile              # Render deployment
+├── render.yaml                 # Render deploy config
+└── .github/workflows/          # Cloudflare Pages CI/CD
 ```
 
 ## Quick Start
 
 ### Prerequisites
-- Flutter 3.19+ / Dart 3.3+
+- Flutter 3.44+
 - Node.js 20+
-- Supabase account (optional, for social features)
 
 ### Run Locally
 
-**1. Start the proxy server:**
+**1. Start the server:**
 ```bash
 cd server
 npm install
-cp .env.example .env   # Add your Podcast Index API keys
-npm run dev            # Runs on http://localhost:3001
+cp .env.example .env
+npm run dev
 ```
 
-**2. Run the Flutter app:**
+**2. Run Flutter:**
 ```bash
+cd aud.io
 flutter pub get
-flutter run -d chrome --web-port=8082
+flutter run -d chrome
 ```
 
-### Android APK
-```bash
-flutter build apk --dart-define=BASE_URL=https://your-server.onrender.com
-```
+### Deploy
+
+**Server (Render):**
+- Push to GitHub → Render auto-deploys from `render.yaml`
+- Set env vars: `PODCAST_INDEX_API_KEY`, `PODCAST_INDEX_API_SECRET`, `SOUNDCLOUD_CLIENT_ID`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`
+
+**Web (Cloudflare Pages):**
+- Push to `main` → GitHub Actions builds Flutter web and deploys to Cloudflare Pages
+- Set repo secret: `CLOUDFLARE_API_TOKEN`
 
 ## Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `PORT` | Server port (default 3001) | No |
-| `PODCAST_INDEX_API_KEY` | Podcast Index API key | Yes (for podcasts) |
-| `PODCAST_INDEX_API_SECRET` | Podcast Index API secret | Yes (for trending/details) |
-| `PODCAST_INDEX_USER_AGENT` | User agent string | No |
-| `SOUNDCLOUD_CLIENT_ID` | SoundCloud API client ID | No |
-| `SUPABASE_URL` | Supabase project URL | No (social features) |
-| `SUPABASE_ANON_KEY` | Supabase anon key | No (social features) |
-
-## Deploy Server to Render.com
-
-1. Push this repo to GitHub
-2. On Render: **New → Web Service** → connect repo
-3. It auto-detects `server/Dockerfile`
-4. Add env vars in Render dashboard (see above)
-5. Deploy → get `https://your-app.onrender.com`
-
-Update Flutter build:
-```bash
-flutter build apk --dart-define=BASE_URL=https://your-app.onrender.com
-```
+| Variable | Description |
+|----------|-------------|
+| `PODCAST_INDEX_API_KEY` | Podcast Index API key |
+| `PODCAST_INDEX_API_SECRET` | Podcast Index API secret |
+| `SOUNDCLOUD_CLIENT_ID` | SoundCloud API client ID |
+| `SPOTIFY_CLIENT_ID` | Spotify app client ID |
+| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret |
+| `SPOTIFY_REDIRECT_URI` | OAuth redirect URL |
 
 ## Tech Stack
 
-- **Flutter** (web + Android) with Provider state management
-- **just_audio + audio_service** for background playback
-- **Node.js/Express** proxy server (bypasses CORS, runs yt-dlp)
-- **yt-dlp / youtube-dl-exec** for audio extraction
-- **ytmusic-api** (InnerTube) for YouTube search
-- **Podcast Index API** for podcasts
-- **archive.org API** for Free Music Archive
-- **Supabase** (PostgreSQL + Auth + Realtime) for social
+- **Flutter** (web + Android) — Provider state management
+- **just_audio + audio_service** — Background playback
+- **Node.js/Express** — API proxy (CORS bypass, yt-dlp, YTMusic InnerTube)
+- **yt-dlp** — Audio extraction from YouTube
+- **dart_ytmusic_api** — YouTube Music search (proxied through server on web)
+- **Podcast Index API** — Podcast search and streaming
+- **Hive** — Local persistence (favorites, playlists, history)
+- **Cloudflare Pages** — Web hosting
+- **Render** — Server hosting
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
