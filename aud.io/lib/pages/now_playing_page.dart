@@ -219,7 +219,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
       child: ClipOval(
         child: track.thumbnailUrl != null
             ? ProxiedImage(url: track.thumbnailUrl!, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: AudIoTheme.surface,
+                errorBuilder: (_, _, _) => Container(color: AudIoTheme.surface,
                     child: Icon(Icons.music_note, size: 48, color: AudIoTheme.muted)),
               )
             : _buildVinylLabel(),
@@ -476,7 +476,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
         ),
         const Spacer(),
         Consumer<LocalPlaylistService>(
-          builder: (_, favService, __) {
+          builder: (_, favService, _) {
             final isFav = favService.isFavorite(track.id);
             return _flatButton(
                 isFav
@@ -514,7 +514,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
 
   Widget _downloadButton(Track track) {
     return Consumer<DownloadService>(
-      builder: (_, dlService, __) {
+      builder: (_, dlService, _) {
         final isDl = dlService.isDownloaded(track.id);
         final dlTask = dlService.tasks[track.id];
         final isDownloading = dlTask?.status == DownloadStatus.downloading;

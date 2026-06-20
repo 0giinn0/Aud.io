@@ -82,7 +82,7 @@ class SettingsPage extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: darkThemes.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, i) {
               final p = darkThemes[i];
               final selected = p.id == currentId;
@@ -133,7 +133,7 @@ class SettingsPage extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: lightThemes.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, i) {
               final p = lightThemes[i];
               final selected = p.id == currentId;
@@ -182,7 +182,7 @@ class SettingsPage extends StatelessWidget {
 
   Widget _buildLibraryCard(BuildContext context) {
     return Consumer<LocalPlaylistService>(
-      builder: (_, lib, __) {
+      builder: (_, lib, _) {
         final trackTotal = lib.playlists.fold<int>(0, (s, p) => s + p.trackCount);
         return _BentoCard(
           height: 92,
@@ -264,7 +264,7 @@ class SettingsPage extends StatelessWidget {
   // ignore: unused_element
   Widget _buildQualityCard(BuildContext context) {
     return Consumer<SettingsService>(
-      builder: (_, s, __) => _BentoCard(
+      builder: (_, s, _) => _BentoCard(
         height: 130,
         gradient: [AudIoTheme.surface, AudIoTheme.surfaceVariant],
         child: Column(
@@ -292,7 +292,7 @@ class SettingsPage extends StatelessWidget {
 
   Widget _buildOfflineCard(BuildContext context) {
     return Consumer<SettingsService>(
-      builder: (_, s, __) => _BentoCard(
+      builder: (_, s, _) => _BentoCard(
         height: 130,
         gradient: [AudIoTheme.surface, AudIoTheme.surfaceVariant],
         child: Column(
@@ -322,7 +322,7 @@ class SettingsPage extends StatelessWidget {
 
   Widget _buildAutoDownloadCard(BuildContext context) {
     return Consumer<SettingsService>(
-      builder: (_, s, __) => _BentoCard(
+      builder: (_, s, _) => _BentoCard(
         height: 130,
         gradient: [AudIoTheme.surface, AudIoTheme.surfaceVariant],
         child: Column(
@@ -352,7 +352,7 @@ class SettingsPage extends StatelessWidget {
 
   Widget _buildStorageCard(BuildContext context) {
     return Consumer<SettingsService>(
-      builder: (_, s, __) => _BentoCard(
+      builder: (_, s, _) => _BentoCard(
         height: 140,
         gradient: [AudIoTheme.surface, AudIoTheme.surfaceVariant],
         onTap: () => _pickDownloadDirectory(context),
@@ -423,6 +423,7 @@ class SettingsPage extends StatelessWidget {
   }
 
   Future<void> _clearCache(BuildContext context) async {
+    final downloadService = context.read<DownloadService>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -439,9 +440,8 @@ class SettingsPage extends StatelessWidget {
       ),
     );
     if (confirmed == true) {
-      final downloadService = context.read<DownloadService>();
       await downloadService.clearAll();
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Downloads cleared')));
       }

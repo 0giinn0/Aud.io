@@ -49,7 +49,7 @@ class _LoadingBarState extends State<LoadingBar> with SingleTickerProviderStateM
             const SizedBox(width: 4),
             AnimatedBuilder(
               animation: _cursorController,
-              builder: (_, __) => Opacity(
+              builder: (_, _) => Opacity(
                 opacity: _cursorController.value < 0.5 ? 1.0 : 0.0,
                 child: Text('_', style: TextStyle(fontSize: 11, color: AudIoTheme.muted)),
               ),

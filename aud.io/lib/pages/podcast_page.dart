@@ -410,7 +410,7 @@ class _PodcastPageState extends State<PodcastPage> {
                 height: 64,
                 child: podcast.thumbnailUrl != null && podcast.thumbnailUrl!.isNotEmpty
                     ? ProxiedImage(url: podcast.thumbnailUrl!, width: 64, height: 64,
-                        errorBuilder: (_, __, ___) => Container(color: AudIoTheme.surfaceVariant,
+                        errorBuilder: (_, _, _) => Container(color: AudIoTheme.surfaceVariant,
                           child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 28)))
                     : Container(color: AudIoTheme.surfaceVariant,
                         child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 28)),
@@ -461,7 +461,7 @@ class _PodcastPageState extends State<PodcastPage> {
                     height: 80,
                     child: podcast.thumbnailUrl != null && podcast.thumbnailUrl!.isNotEmpty
                     ? ProxiedImage(url: podcast.thumbnailUrl!, width: 80, height: 80,
-                        errorBuilder: (_, __, ___) => Container(color: AudIoTheme.surfaceVariant,
+                        errorBuilder: (_, _, _) => Container(color: AudIoTheme.surfaceVariant,
                           child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 32)))
                         : Container(color: AudIoTheme.surfaceVariant,
                             child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 32)),
@@ -532,7 +532,7 @@ class _PodcastPageState extends State<PodcastPage> {
                     height: 56,
                     child: episode.thumbnailUrl != null && (episode.thumbnailUrl ?? '').isNotEmpty
                     ? ProxiedImage(url: episode.thumbnailUrl!, width: 56, height: 56,
-                        errorBuilder: (_, __, ___) => Container(color: AudIoTheme.surfaceVariant,
+                        errorBuilder: (_, _, _) => Container(color: AudIoTheme.surfaceVariant,
                           child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 24)))
                         : Container(color: AudIoTheme.surfaceVariant,
                             child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 24)),

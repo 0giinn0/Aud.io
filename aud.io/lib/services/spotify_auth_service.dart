@@ -217,7 +217,4 @@ class SpotifyAuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void dispose() {
-    super.dispose();
-  }
 }

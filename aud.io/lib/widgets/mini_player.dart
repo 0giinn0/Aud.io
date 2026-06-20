@@ -66,7 +66,7 @@ class MiniPlayer extends StatelessWidget {
                             height: 34,
                             child: track.thumbnailUrl != null
                                 ? ProxiedImage(url: track.thumbnailUrl!, width: 34, height: 34,
-                                    errorBuilder: (_, __, ___) => _artFallback(),
+                                    errorBuilder: (_, _, _) => _artFallback(),
                                   )
                                 : _artFallback(),
                           ),

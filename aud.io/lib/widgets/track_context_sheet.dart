@@ -80,7 +80,7 @@ class _TrackContextSheet extends StatelessWidget {
                 if (track.thumbnailUrl != null)
                   ProxiedImage(url: track.thumbnailUrl!, width: 40, height: 40,
                     borderRadius: BorderRadius.circular(2),
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       width: 40, height: 40, color: AudIoTheme.surfaceVariant,
                       child: Icon(Icons.music_note, size: 20, color: AudIoTheme.muted),
                     ),

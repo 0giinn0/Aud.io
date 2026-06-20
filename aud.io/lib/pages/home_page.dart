@@ -260,7 +260,7 @@ class _HomePageState extends State<HomePage> {
                 color: AudIoTheme.surfaceVariant,
                 child: track.thumbnailUrl != null
                     ? ProxiedImage(url: track.thumbnailUrl!, width: 48, height: 48,
-                        errorBuilder: (_, __, ___) =>
+                        errorBuilder: (_, _, _) =>
                             Icon(Icons.music_note_rounded, size: 22, color: AudIoTheme.subtle))
                     : Icon(Icons.music_note_rounded, size: 22, color: AudIoTheme.subtle),
               ),
@@ -408,7 +408,7 @@ class _HomePageState extends State<HomePage> {
                 if (track != null) ...[
                   if (track.thumbnailUrl != null)
                     ProxiedImage(url: track.thumbnailUrl!, width: 56, height: 56, borderRadius: BorderRadius.circular(8),
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         width: 56, height: 56, color: AudIoTheme.surfaceVariant,
                         child: Icon(Icons.music_note_rounded, size: 24, color: AudIoTheme.subtle)))
                   else

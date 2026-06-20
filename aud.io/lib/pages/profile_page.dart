@@ -881,7 +881,7 @@ class _PlaylistBentoTile extends StatelessWidget {
               ),
               child: playlist.tracks.isNotEmpty && playlist.tracks.first.thumbnailUrl != null
                   ? ProxiedImage(url: playlist.tracks.first.thumbnailUrl!, width: 56, height: 56, borderRadius: BorderRadius.circular(10),
-                    errorBuilder: (_, __, ___) => Icon(Icons.queue_music_rounded, size: 24, color: AudIoTheme.subtle))
+                    errorBuilder: (_, _, _) => Icon(Icons.queue_music_rounded, size: 24, color: AudIoTheme.subtle))
                   : Icon(Icons.queue_music_rounded, size: 24, color: AudIoTheme.subtle),
             ),
             const SizedBox(width: 14),
@@ -1094,7 +1094,7 @@ class _LikedSongsPage extends StatelessWidget {
                             children: [
                               if (track.thumbnailUrl != null)
                                 ProxiedImage(url: track.thumbnailUrl!, width: 44, height: 44, borderRadius: BorderRadius.circular(8),
-                                  errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
+                                  errorBuilder: (_, _, _) => Container(width: 44, height: 44,
                                     decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
                                     child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle)))
                               else
@@ -1216,7 +1216,7 @@ class _PlaylistTrackTile extends StatelessWidget {
             ),
             if (track.thumbnailUrl != null)
               ProxiedImage(url: track.thumbnailUrl!, width: 44, height: 44, borderRadius: BorderRadius.circular(8),
-                errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
+                errorBuilder: (_, _, _) => Container(width: 44, height: 44,
                   decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
                   child: Icon(Icons.music_note_rounded, size: 18, color: AudIoTheme.subtle)))
             else
@@ -1307,7 +1307,7 @@ class _SpotifyPlaylistListState extends State<_SpotifyPlaylistList> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(p.image!, width: 44, height: 44, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(width: 44, height: 44,
+                      errorBuilder: (_, _, _) => Container(width: 44, height: 44,
                         color: AudIoTheme.surfaceVariant,
                         child: Icon(Icons.queue_music_rounded, size: 18, color: AudIoTheme.subtle))),
                   )

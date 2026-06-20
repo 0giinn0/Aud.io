@@ -50,7 +50,7 @@ class _ParticleBackgroundState extends State<ParticleBackground>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller,
-      builder: (_, __) {
+      builder: (_, _) {
         return CustomPaint(
           painter: _ParticlePainter(
             particles: _particles,

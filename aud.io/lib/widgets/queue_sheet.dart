@@ -126,7 +126,7 @@ class _QueueCard extends StatelessWidget {
             children: [
               if (track.thumbnailUrl != null)
                 ProxiedImage(url: track.thumbnailUrl!, width: 44, height: 44, borderRadius: BorderRadius.circular(8),
-                  errorBuilder: (_, __, ___) => _placeholder())
+                  errorBuilder: (_, _, _) => _placeholder())
               else
                 _placeholder(),
               const SizedBox(width: 12),
