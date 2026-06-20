@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 640" width="340" height="640">
+  <defs>
+    <filter id="sk" x="-4%" y="-4%" width="108%" height="108%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" result="n" seed="5"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.5" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+
+  <!-- Paper background -->
+  <rect width="340" height="640" fill="#F7F4EE"/>
+
+  <!-- Page title -->
+  <text x="170" y="28" text-anchor="middle" font-family="Georgia,serif" font-size="13" fill="#3A352C" font-style="italic">themes &amp; settings</text>
+
+  <!-- Phone shadow -->
+  <rect x="30" y="44" width="288" height="560" rx="36" fill="#00000022"/>
+
+  <!-- Phone frame -->
+  <rect x="26" y="40" width="288" height="560" rx="36" fill="#14120F" stroke="#3A352C" stroke-width="2" filter="url(#sk)"/>
+
+  <!-- Dynamic island -->
+  <rect x="130" y="52" width="80" height="16" rx="8" fill="#0A0807"/>
+
+  <!-- Status bar -->
+  <text x="46" y="68" font-family="monospace" font-size="10" fill="#6F6A5E">9:41</text>
+  <text x="294" y="68" text-anchor="end" font-family="monospace" font-size="10" fill="#6F6A5E">■■■</text>
+
+  <!-- Settings header -->
+  <text x="46" y="96" font-family="Georgia,serif" font-size="18" fill="#DCD8CD" font-weight="bold">Settings</text>
+
+  <!-- DARK THEMES label -->
+  <text x="46" y="113" font-family="monospace" font-size="8" fill="#6F6A5E" letter-spacing="2">DARK THEMES</text>
+
+  <!-- Ink & Red swatch (SELECTED) -->
+  <rect x="46" y="120" width="62" height="52" rx="12" fill="#14120F" stroke="#E8432A" stroke-width="2.5" filter="url(#sk)"/>
+  <circle cx="77" cy="136" r="8" fill="#E8432A"/>
+  <text x="77" y="161" text-anchor="middle" font-family="Georgia,serif" font-size="7" fill="#DCD8CD">Ink &amp; Red</text>
+
+  <!-- Black & Grey swatch -->
+  <rect x="116" y="120" width="62" height="52" rx="12" fill="#0A0A0A" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <circle cx="147" cy="136" r="8" fill="#9E9E9E"/>
+  <text x="147" y="161" text-anchor="middle" font-family="Georgia,serif" font-size="7" fill="#A49F92">Black &amp; Grey</text>
+
+  <!-- Black & Gold swatch -->
+  <rect x="186" y="120" width="62" height="52" rx="12" fill="#0D0D0D" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <circle cx="217" cy="136" r="8" fill="#D4A843"/>
+  <text x="217" y="161" text-anchor="middle" font-family="Georgia,serif" font-size="7" fill="#A49F92">Black &amp; Gold</text>
+
+  <!-- Midnight Blue swatch -->
+  <rect x="256" y="120" width="58" height="52" rx="12" fill="#0F1623" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <circle cx="285" cy="136" r="8" fill="#5C6BC0"/>
+  <text x="285" y="161" text-anchor="middle" font-family="Georgia,serif" font-size="7" fill="#A49F92">Mid. Blue</text>
+
+  <!-- LIGHT THEMES label -->
+  <text x="46" y="178" font-family="monospace" font-size="8" fill="#6F6A5E" letter-spacing="2">LIGHT THEMES</text>
+
+  <!-- Cream & Red swatch -->
+  <rect x="46" y="184" width="62" height="52" rx="12" fill="#DCD8CD" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <circle cx="77" cy="200" r="8" fill="#E8432A"/>
+  <text x="77" y="226" text-anchor="middle" font-family="Georgia,serif" font-size="7" fill="#6F6A5E">Cream &amp; Red</text>
+
+  <!-- Pure White swatch -->
+  <rect x="116" y="184" width="62" height="52" rx="12" fill="#F5F5F5" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <circle cx="147" cy="200" r="8" fill="#424242"/>
+  <text x="147" y="226" text-anchor="middle" font-family="Georgia,serif" font-size="7" fill="#6F6A5E">Pure White</text>
+
+  <!-- Warm Sand swatch -->
+  <rect x="186" y="184" width="62" height="52" rx="12" fill="#F5E6D3" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <circle cx="217" cy="200" r="8" fill="#8D6E63"/>
+  <text x="217" y="226" text-anchor="middle" font-family="Georgia,serif" font-size="7" fill="#6F6A5E">Warm Sand</text>
+
+  <!-- Divider -->
+  <line x1="46" y1="244" x2="294" y2="244" stroke="#3A352C" stroke-width="1"/>
+
+  <!-- AUDIO QUALITY label -->
+  <text x="46" y="260" font-family="monospace" font-size="8" fill="#6F6A5E" letter-spacing="2">AUDIO QUALITY</text>
+
+  <!-- Quality card -->
+  <rect x="46" y="268" width="248" height="56" rx="14" fill="#201D18" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <text x="62" y="291" font-family="Georgia,serif" font-size="10" fill="#DCD8CD" font-weight="bold">Quality</text>
+  <text x="62" y="307" font-family="monospace" font-size="9" fill="#6F6A5E">current:</text>
+  <text x="114" y="307" font-family="Georgia,serif" font-size="11" fill="#E8432A" font-weight="bold">320 kbps</text>
+  <!-- Slider -->
+  <rect x="200" y="286" width="80" height="4" rx="2" fill="#2C2821"/>
+  <rect x="200" y="286" width="64" height="4" rx="2" fill="#E8432A"/>
+  <circle cx="264" cy="288" r="6" fill="#DCD8CD" stroke="#E8432A" stroke-width="1.5"/>
+
+  <!-- STORAGE label -->
+  <text x="46" y="340" font-family="monospace" font-size="8" fill="#6F6A5E" letter-spacing="2">STORAGE</text>
+
+  <!-- Storage card -->
+  <rect x="46" y="348" width="248" height="70" rx="14" fill="#201D18" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <!-- Folder icon -->
+  <rect x="62" y="362" width="22" height="16" rx="2" fill="none" stroke="#6F6A5E" stroke-width="1.3"/>
+  <polyline points="62,365 68,359 76,359 82,365" fill="none" stroke="#6F6A5E" stroke-width="1.3" stroke-linejoin="round"/>
+  <!-- Path text -->
+  <text x="92" y="371" font-family="Georgia,serif" font-size="8" fill="#DCD8CD">Downloads:</text>
+  <text x="92" y="384" font-family="monospace" font-size="7" fill="#A49F92">/sdcard/Music</text>
+  <!-- Clear button -->
+  <rect x="62" y="394" width="106" height="18" rx="8" fill="none" stroke="#C4321A" stroke-width="1"/>
+  <text x="115" y="407" text-anchor="middle" font-family="Georgia,serif" font-size="8" fill="#E8432A">Clear Downloads</text>
+
+  <!-- OFFLINE + AUTO-DL label -->
+  <text x="46" y="432" font-family="monospace" font-size="8" fill="#6F6A5E" letter-spacing="2">MODES</text>
+
+  <!-- Offline toggle card -->
+  <rect x="46" y="440" width="115" height="56" rx="14" fill="#201D18" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <!-- Wifi-off icon: simple arcs + diagonal line -->
+  <path d="M58,457 Q63,452 70,452 Q77,452 82,457" fill="none" stroke="#6F6A5E" stroke-width="1.3" stroke-linecap="round"/>
+  <path d="M62,461 Q66,458 70,458 Q74,458 78,461" fill="none" stroke="#6F6A5E" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="60" y1="450" x2="80" y2="468" stroke="#6F6A5E" stroke-width="1.3" stroke-linecap="round"/>
+  <text x="62" y="483" font-family="Georgia,serif" font-size="9" fill="#DCD8CD" font-weight="bold">Offline</text>
+  <!-- Toggle off -->
+  <rect x="128" y="455" width="24" height="14" rx="7" fill="#3A352C"/>
+  <circle cx="134" cy="462" r="5" fill="#6F6A5E"/>
+
+  <!-- Auto-DL toggle card -->
+  <rect x="169" y="440" width="125" height="56" rx="14" fill="#201D18" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <!-- Download arrow icon -->
+  <line x1="232" y1="452" x2="232" y2="465" stroke="#E8432A" stroke-width="1.5" stroke-linecap="round"/>
+  <polyline points="226,461 232,467 238,461" fill="none" stroke="#E8432A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="179" y="483" font-family="Georgia,serif" font-size="9" fill="#DCD8CD" font-weight="bold">Auto DL</text>
+  <!-- Toggle on -->
+  <rect x="258" y="455" width="24" height="14" rx="7" fill="#E8432A"/>
+  <circle cx="275" cy="462" r="5" fill="#FAFAF0"/>
+
+  <!-- About card -->
+  <rect x="46" y="504" width="248" height="48" rx="14" fill="#201D18" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <!-- Info circle -->
+  <circle cx="62" cy="528" r="8" fill="none" stroke="#6F6A5E" stroke-width="1.2"/>
+  <text x="62" y="532" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#6F6A5E">i</text>
+  <text x="78" y="523" font-family="Georgia,serif" font-size="10" fill="#DCD8CD" font-weight="bold">aud.io</text>
+  <text x="78" y="535" font-family="monospace" font-size="7" fill="#6F6A5E">v1.0.0-beta · MIT License</text>
+
+  <!-- Mini player (compressed) -->
+  <rect x="46" y="558" width="248" height="36" rx="10" fill="#E8432A" filter="url(#sk)"/>
+  <rect x="56" y="565" width="24" height="22" rx="5" fill="#C4321A"/>
+  <text x="62" y="580" font-family="Georgia,serif" font-size="11" fill="#F0EDE8">♪</text>
+  <text x="88" y="576" font-family="Georgia,serif" font-size="8" fill="#FAFAF0" font-weight="bold">Midnight Jazz</text>
+  <text x="88" y="587" font-family="monospace" font-size="7" fill="#FAEAE6">Blue Note Trio</text>
+  <text x="274" y="583" font-family="Georgia,serif" font-size="16" fill="#FAFAF0">⏸</text>
+
+  <!-- Nav bar (compressed) -->
+  <rect x="46" y="597" width="248" height="40" rx="14" fill="#201D18" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <text x="80" y="622" font-family="Georgia,serif" font-size="18" fill="#6F6A5E" text-anchor="middle">⌂</text>
+  <circle cx="130" cy="614" r="6" fill="none" stroke="#6F6A5E" stroke-width="1.2"/>
+  <line x1="134" y1="619" x2="137" y2="622" stroke="#6F6A5E" stroke-width="1.2"/>
+  <line x1="175" y1="610" x2="195" y2="610" stroke="#6F6A5E" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="175" y1="616" x2="191" y2="616" stroke="#6F6A5E" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="175" y1="622" x2="188" y2="622" stroke="#6F6A5E" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Settings gear active -->
+  <circle cx="258" cy="617" r="7" fill="none" stroke="#E8432A" stroke-width="1.5"/>
+  <circle cx="258" cy="617" r="3" fill="none" stroke="#E8432A" stroke-width="1.3"/>
+
+  <!-- OUTSIDE ANNOTATIONS -->
+
+  <!-- "selected theme" annotation pointing at Ink & Red swatch -->
+  <text x="2" y="126" font-family="Georgia,serif" font-size="9" fill="#8A7D72" font-style="italic" transform="rotate(-5,2,126)">selected</text>
+  <text x="2" y="138" font-family="Georgia,serif" font-size="9" fill="#8A7D72" font-style="italic" transform="rotate(-5,2,138)">theme</text>
+  <path d="M 24 132 L 44 132" fill="none" stroke="#8A7D72" stroke-width="1" stroke-linecap="round"/>
+  <polyline points="42,130 44,132 42,134" fill="none" stroke="#8A7D72" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- "7 presets" annotation -->
+  <text x="320" y="148" font-family="Georgia,serif" font-size="9" fill="#8A7D72" font-style="italic">7</text>
+  <text x="316" y="160" font-family="Georgia,serif" font-size="9" fill="#8A7D72" font-style="italic">presets</text>
+
+  <!-- "one-tap swap" -->
+  <text x="312" y="210" font-family="Georgia,serif" font-size="8" fill="#E8432A" font-style="italic">one-tap</text>
+  <text x="316" y="222" font-family="Georgia,serif" font-size="8" fill="#E8432A" font-style="italic">swap</text>
+</svg>

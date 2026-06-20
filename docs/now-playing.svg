@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 640" width="340" height="640">
+  <defs>
+    <filter id="sk" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" result="n" seed="7"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.5" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+
+  <!-- Paper background -->
+  <rect width="340" height="640" fill="#F7F4EE" rx="4"/>
+
+  <!-- Page title -->
+  <text x="170" y="28" text-anchor="middle" font-family="Georgia,serif" font-size="14" fill="#3A352C" font-style="italic">now playing</text>
+
+  <!-- Phone shadow -->
+  <rect x="30" y="44" width="288" height="560" rx="36" fill="#00000022"/>
+
+  <!-- Phone frame -->
+  <rect x="26" y="40" width="288" height="560" rx="36" fill="#14120F" stroke="#3A352C" stroke-width="2" filter="url(#sk)"/>
+
+  <!-- Dynamic island -->
+  <rect x="130" y="52" width="80" height="16" rx="8" fill="#0A0807"/>
+
+  <!-- Status bar -->
+  <text x="46" y="68" font-family="monospace" font-size="10" fill="#6F6A5E">9:41</text>
+  <rect x="286" y="60" width="22" height="10" rx="2" fill="none" stroke="#6F6A5E" stroke-width="1.2"/>
+  <rect x="308" y="63" width="2" height="4" rx="1" fill="#6F6A5E"/>
+  <rect x="287" y="61" width="16" height="8" rx="1.5" fill="#6F6A5E"/>
+
+  <!-- Back button -->
+  <text x="50" y="95" font-family="Georgia,serif" font-size="18" fill="#A49F92">&#8592;</text>
+
+  <!-- Page header -->
+  <text x="170" y="95" text-anchor="middle" font-family="monospace" font-size="9" fill="#6F6A5E" letter-spacing="2">NOW PLAYING</text>
+
+  <!-- Queue button -->
+  <text x="300" y="95" font-family="Georgia,serif" font-size="16" fill="#A49F92" text-anchor="end">&#9776;</text>
+
+  <!-- ── VINYL RECORD ── -->
+
+  <!-- Outer disc -->
+  <circle cx="170" cy="220" r="100" fill="#2C2821" stroke="#3A352C" stroke-width="2" filter="url(#sk)"/>
+
+  <!-- Inner dark ring (label area border) -->
+  <circle cx="170" cy="220" r="70" fill="none" stroke="#201D18" stroke-width="14"/>
+
+  <!-- Groove rings -->
+  <circle cx="170" cy="220" r="92" fill="none" stroke="#1A1714" stroke-width="0.8"/>
+  <circle cx="170" cy="220" r="78" fill="none" stroke="#1A1714" stroke-width="0.8"/>
+  <circle cx="170" cy="220" r="50" fill="none" stroke="#1A1714" stroke-width="0.8"/>
+
+  <!-- Label area -->
+  <circle cx="170" cy="220" r="32" fill="#201D18"/>
+
+  <!-- Center circle (red) -->
+  <circle cx="170" cy="220" r="16" fill="#E8432A"/>
+
+  <!-- Vinyl label text -->
+  <text x="170" y="218" text-anchor="middle" font-family="Georgia,serif" font-size="8" fill="#DCD8CD" font-weight="bold">A</text>
+  <text x="170" y="228" text-anchor="middle" font-family="monospace" font-size="5" fill="#C4321A">SIDE A</text>
+
+  <!-- Center spindle hole -->
+  <circle cx="170" cy="220" r="5" fill="#14120F"/>
+
+  <!-- Track title -->
+  <text x="170" y="350" text-anchor="middle" font-family="Georgia,serif" font-size="16" fill="#DCD8CD" font-weight="bold">Midnight Jazz</text>
+  <text x="170" y="366" text-anchor="middle" font-family="monospace" font-size="10" fill="#A49F92">Blue Note Trio</text>
+
+  <!-- Source badge -->
+  <rect x="130" y="372" width="80" height="18" rx="8" fill="#201D18" stroke="#3A352C" stroke-width="1"/>
+  <text x="170" y="384" text-anchor="middle" font-family="monospace" font-size="7" fill="#6F6A5E">YouTube Music</text>
+
+  <!-- Progress bar -->
+  <text x="50" y="410" font-family="monospace" font-size="9" fill="#A49F92">1:42</text>
+  <text x="290" y="410" text-anchor="end" font-family="monospace" font-size="9" fill="#6F6A5E">4:18</text>
+  <rect x="50" y="415" width="240" height="4" rx="2" fill="#2C2821"/>
+  <rect x="50" y="415" width="95" height="4" rx="2" fill="#E8432A"/>
+  <circle cx="145" cy="417" r="6" fill="#E8432A"/>
+
+  <!-- ── CONTROLS ── -->
+
+  <!-- Prev -->
+  <text x="80" y="458" font-family="monospace" font-size="24" fill="#A49F92" text-anchor="middle">&#9198;</text>
+
+  <!-- Play button (circle + triangle) -->
+  <circle cx="170" cy="450" r="26" fill="#E8432A"/>
+  <polygon points="163,440 163,460 185,450" fill="#14120F"/>
+
+  <!-- Next -->
+  <text x="260" y="458" font-family="monospace" font-size="24" fill="#A49F92" text-anchor="middle">&#9197;</text>
+
+  <!-- ── SECONDARY CONTROLS ── -->
+  <text x="60" y="505" font-family="Georgia,serif" font-size="18" fill="#6F6A5E" text-anchor="middle">&#9825;</text>
+  <text x="120" y="505" font-family="Georgia,serif" font-size="18" fill="#6F6A5E" text-anchor="middle">&#11015;</text>
+  <text x="180" y="505" font-family="Georgia,serif" font-size="18" fill="#6F6A5E" text-anchor="middle">&#9998;</text>
+  <text x="240" y="505" font-family="Georgia,serif" font-size="18" fill="#6F6A5E" text-anchor="middle">&#8663;</text>
+  <text x="300" y="505" font-family="Georgia,serif" font-size="18" fill="#6F6A5E" text-anchor="middle">&#9776;</text>
+
+  <!-- ── LYRICS CARD ── -->
+  <rect x="46" y="516" width="248" height="52" rx="12" fill="#201D18" stroke="#3A352C" stroke-width="1" filter="url(#sk)"/>
+  <text x="170" y="534" text-anchor="middle" font-family="Georgia,serif" font-size="9" fill="#A49F92" font-style="italic">&#9835; Midnight Jazz, falling soft</text>
+  <text x="170" y="548" text-anchor="middle" font-family="Georgia,serif" font-size="9" fill="#A49F92" font-style="italic">through the city lights...</text>
+  <text x="170" y="561" text-anchor="middle" font-family="monospace" font-size="6" fill="#6F6A5E">lyrics via Genius</text>
+
+  <!-- ── ANNOTATIONS ── -->
+
+  <!-- "vinyl art" annotation left -->
+  <text x="2" y="210" font-family="Georgia,serif" font-size="9" fill="#8A7D72" font-style="italic" transform="rotate(-4,2,210)">vinyl</text>
+  <text x="4" y="222" font-family="Georgia,serif" font-size="9" fill="#8A7D72" font-style="italic" transform="rotate(-4,4,222)">art</text>
+  <line x1="24" y1="216" x2="64" y2="200" stroke="#8A7D72" stroke-width="1" stroke-linecap="round"/>
+  <polygon points="64,198 64,202 68,200" fill="#8A7D72"/>
+
+  <!-- "play controls" annotation right -->
+  <text x="316" y="440" font-family="Georgia,serif" font-size="9" fill="#8A7D72" font-style="italic" transform="rotate(4,316,440)">play</text>
+  <text x="310" y="452" font-family="Georgia,serif" font-size="9" fill="#8A7D72" font-style="italic" transform="rotate(4,310,452)">controls</text>
+  <line x1="312" y1="446" x2="300" y2="448" stroke="#8A7D72" stroke-width="1" stroke-linecap="round"/>
+  <polygon points="304,446 304,450 300,448" fill="#8A7D72"/>
+
+  <!-- "lyrics card" annotation right -->
+  <text x="306" y="530" font-family="Georgia,serif" font-size="9" fill="#8A7D72" font-style="italic" transform="rotate(3,306,530)">lyrics</text>
+  <text x="308" y="542" font-family="Georgia,serif" font-size="9" fill="#8A7D72" font-style="italic" transform="rotate(3,308,542)">card</text>
+  <line x1="308" y1="536" x2="296" y2="538" stroke="#8A7D72" stroke-width="1" stroke-linecap="round"/>
+  <polygon points="300,536 300,540 296,538" fill="#8A7D72"/>
+
+</svg>
