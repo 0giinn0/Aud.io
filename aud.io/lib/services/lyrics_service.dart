@@ -53,9 +53,11 @@ class LyricsService {
     try {
       final uri = Uri.parse('$_baseUrl/get?video_id=$videoId');
       final resp = await http.get(uri, headers: {'User-Agent': 'aud.io/1.0'}).timeout(const Duration(seconds: 10));
-      if (resp.statusCode != 200) return title != null && artist != null
-          ? fetchLyrics(title, artist, duration: duration)
-          : null;
+      if (resp.statusCode != 200) {
+        return title != null && artist != null
+            ? fetchLyrics(title, artist, duration: duration)
+            : null;
+      }
 
       final data = jsonDecode(resp.body) as Map<String, dynamic>;
       final synced = data['syncedLyrics'] as String?;

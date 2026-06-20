@@ -50,13 +50,14 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {
       results = [];
     }
-    if (results.isEmpty) {
+    if (results.isEmpty && mounted) {
       try {
         final lib = context.read<MusicLibrary>();
         results = await lib.searchAll(query.trim());
       } catch (_) {}
     }
 
+    if (!mounted) return;
     setState(() {
       _searchResults = results;
       _isSearching = false;

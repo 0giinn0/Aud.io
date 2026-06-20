@@ -1,6 +1,5 @@
 import 'dart:developer' as dev;
 import 'package:audio_service/audio_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -26,7 +25,7 @@ import 'package:aud_io/widgets/mini_player.dart';
 import 'package:aud_io/widgets/golden_spiral_nav.dart';
 import 'package:aud_io/widgets/loading_bar.dart';
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html if (dart.library.js_interop) 'dart:js_interop';
+import 'package:web/web.dart' as web;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -209,7 +208,7 @@ class _AppShellState extends State<AppShell> {
       // Clear the URL parameters
       if (uri.queryParameters.containsKey('code')) {
         final cleanUri = uri.replace(queryParameters: {});
-        html.window.history.replaceState(null, '', cleanUri.toString());
+        web.window.history.replaceState(null, '', cleanUri.toString());
       }
     }
   }

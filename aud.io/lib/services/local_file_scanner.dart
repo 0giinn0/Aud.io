@@ -123,9 +123,9 @@ class LocalFileScanner extends ChangeNotifier {
     if (home.isEmpty) return;
 
     final dirs = [
-      '${home}/Music',
-      '${home}/Downloads',
-      '${home}/Desktop',
+      '$home/Music',
+      '$home/Downloads',
+      '$home/Desktop',
     ];
 
     for (final dirPath in dirs) {

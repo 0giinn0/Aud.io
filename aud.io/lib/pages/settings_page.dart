@@ -305,7 +305,7 @@ class SettingsPage extends StatelessWidget {
                 Switch(
                   value: s.offlineMode,
                   onChanged: s.setOfflineMode,
-                  activeColor: AudIoTheme.primary,
+                  activeThumbColor: AudIoTheme.primary,
                 ),
               ],
             ),
@@ -335,7 +335,7 @@ class SettingsPage extends StatelessWidget {
                 Switch(
                   value: s.autoDownload,
                   onChanged: s.setAutoDownload,
-                  activeColor: AudIoTheme.primary,
+                  activeThumbColor: AudIoTheme.primary,
                 ),
               ],
             ),
@@ -439,10 +439,11 @@ class SettingsPage extends StatelessWidget {
       ),
     );
     if (confirmed == true) {
-      await context.read<DownloadService>().clearAll();
-      if (context.mounted) {
+      final downloadService = context.read<DownloadService>();
+      await downloadService.clearAll();
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Downloads cleared', style: TextStyle())));
+          const SnackBar(content: Text('Downloads cleared')));
       }
     }
   }

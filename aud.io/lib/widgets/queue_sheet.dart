@@ -64,12 +64,12 @@ class _QueueSheet extends StatelessWidget {
                   child: queue.isEmpty
                       ? Center(child: Text('Queue is empty',
                           style: TextStyle(fontSize: 12, color: AudIoTheme.muted)))
-                      : ReorderableListView.builder(
-                          scrollController: scrollController,
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                          itemCount: queue.length,
-                          onReorder: handler.reorderQueue,
-                          itemBuilder: (context, index) {
+                        : ReorderableListView.builder(
+                            scrollController: scrollController,
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                            itemCount: queue.length,
+                            onReorderItem: handler.reorderQueue,
+                            itemBuilder: (context, index) {
                             final track = queue[index];
                             final isCurrent = index == current;
                             return _QueueCard(

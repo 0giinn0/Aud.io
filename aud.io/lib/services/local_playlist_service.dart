@@ -173,7 +173,6 @@ class LocalPlaylistService extends ChangeNotifier {
     notifyListeners();
   }
 
-  @override
   void dispose() {
     super.dispose();
   }

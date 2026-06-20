@@ -273,7 +273,9 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
     final next = _queue[idx + 1];
     if (next.source == TrackSource.local ||
         next.source == TrackSource.fake ||
-        next.source == TrackSource.podcast) return;
+        next.source == TrackSource.podcast) {
+      return;
+    }
 
     // YouTube on mobile: pre-warm the InnerTube cache.
     if (next.source == TrackSource.youtube && !kIsWeb) {

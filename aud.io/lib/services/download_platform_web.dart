@@ -1,8 +1,9 @@
 // Web implementation of file download
-import 'dart:html';
+import 'package:web/web.dart';
 
 void triggerDownload(String url, String filename) {
-  final anchor = AnchorElement(href: url)
+  final anchor = HTMLAnchorElement()
+    ..href = url
     ..target = '_blank'
     ..download = filename;
   anchor.click();
