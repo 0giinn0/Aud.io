@@ -20,9 +20,10 @@ class GoldenSection {
 
 /// Golden-ratio spiral navigation, after narrowdesign.com:
 /// the active section fills the major golden rectangle (~61.8% of the
-/// screen) and every other section occupies a successively smaller golden
-/// rectangle spiraling into the corner. Tapping a panel animates all
-/// panels into their new spiral positions.
+/// screen) and up to 3 inactive sections occupy successively smaller golden
+/// rectangles spiraling into the corner. When there are more than 4 sections
+/// the visible set slides: tapping the smallest panel cycles to the next
+/// hidden section, so all sections stay within 1–3 taps.
 ///
 /// Page state is preserved: every page stays mounted (Offstage while its
 /// section is inactive).
@@ -31,6 +32,9 @@ class GoldenSpiralNav extends StatelessWidget {
   final int activeIndex;
   final ValueChanged<int> onChanged;
 
+  // Maximum panels shown in the spiral at once (1 active + N-1 inactive).
+  static const int _maxVisible = 4;
+
   const GoldenSpiralNav({
     super.key,
     required this.sections,
@@ -38,33 +42,31 @@ class GoldenSpiralNav extends StatelessWidget {
     required this.onChanged,
   });
 
-  /// Splits [bounds] into one rect per section: the active section takes
-  /// the major share of each remaining rectangle's long side, the rest
-  /// spiral inward (the classic nested golden-rectangle construction).
-  List<Rect> _spiralRects(Rect bounds) {
-    final rects = List<Rect>.filled(sections.length, Rect.zero);
-    // Visit sections starting at the active one, wrapping around, so the
-    // active section always owns the largest rectangle.
-    final order = List<int>.generate(
-        sections.length, (i) => (activeIndex + i) % sections.length);
+  /// Returns the indices of sections shown in the spiral, in spiral order
+  /// (active first, then the next [_maxVisible-1] sections circularly).
+  List<int> _visibleIndices() {
+    final count = sections.length.clamp(0, _maxVisible);
+    return List<int>.generate(count, (i) => (activeIndex + i) % sections.length);
+  }
 
+  /// Splits [bounds] into one rect per visible section.
+  List<Rect> _spiralRects(Rect bounds, int visibleCount) {
+    final rects = List<Rect>.filled(visibleCount, Rect.zero);
     var remaining = bounds;
-    for (var k = 0; k < order.length; k++) {
-      if (k == order.length - 1) {
-        rects[order[k]] = remaining;
+    for (var k = 0; k < visibleCount; k++) {
+      if (k == visibleCount - 1) {
+        rects[k] = remaining;
         break;
       }
       final landscape = remaining.width >= remaining.height;
       if (landscape) {
         final w = remaining.width * AudIoTheme.golden;
-        rects[order[k]] = Rect.fromLTWH(
-            remaining.left, remaining.top, w, remaining.height);
+        rects[k] = Rect.fromLTWH(remaining.left, remaining.top, w, remaining.height);
         remaining = Rect.fromLTWH(remaining.left + w, remaining.top,
             remaining.width - w, remaining.height);
       } else {
         final h = remaining.height * AudIoTheme.golden;
-        rects[order[k]] = Rect.fromLTWH(
-            remaining.left, remaining.top, remaining.width, h);
+        rects[k] = Rect.fromLTWH(remaining.left, remaining.top, remaining.width, h);
         remaining = Rect.fromLTWH(remaining.left, remaining.top + h,
             remaining.width, remaining.height - h);
       }
@@ -74,10 +76,13 @@ class GoldenSpiralNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visible = _visibleIndices();
+    final hasOverflow = sections.length > _maxVisible;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final bounds = Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight);
-        final rects = _spiralRects(bounds);
+        final rects = _spiralRects(bounds, visible.length);
 
         return Stack(
           children: [
@@ -89,7 +94,7 @@ class GoldenSpiralNav extends StatelessWidget {
               key: const ValueKey('golden-pages-layer'),
               duration: const Duration(milliseconds: 650),
               curve: Curves.easeInOutQuart,
-              rect: rects[activeIndex],
+              rect: rects[0], // rects[0] is always the active section
               child: Container(
                 decoration: BoxDecoration(
                   color: AudIoTheme.bg,
@@ -112,26 +117,30 @@ class GoldenSpiralNav extends StatelessWidget {
                 ),
               ),
             ),
-            // Preview panels for the inactive sections, spiraling inward.
-            for (var i = 0; i < sections.length; i++)
-              if (i != activeIndex)
-                AnimatedPositioned.fromRect(
-                  key: ValueKey('golden-panel-$i'),
-                  duration: const Duration(milliseconds: 650),
-                  curve: Curves.easeInOutQuart,
-                  rect: rects[i],
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => onChanged(i),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: sections[i].panelColor,
-                        border: Border.all(color: AudIoTheme.ink, width: 1),
-                      ),
-                      child: _PanelPreview(section: sections[i], index: i),
+            // Preview panels for the inactive visible sections, spiraling inward.
+            for (var v = 1; v < visible.length; v++)
+              AnimatedPositioned.fromRect(
+                key: ValueKey('golden-panel-${visible[v]}'),
+                duration: const Duration(milliseconds: 650),
+                curve: Curves.easeInOutQuart,
+                rect: rects[v],
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(visible[v]),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: sections[visible[v]].panelColor,
+                      border: Border.all(color: AudIoTheme.ink, width: 1),
+                    ),
+                    child: _PanelPreview(
+                      section: sections[visible[v]],
+                      index: visible[v],
+                      // Show overflow indicator on last visible panel when sections overflow
+                      showOverflowDot: hasOverflow && v == visible.length - 1,
                     ),
                   ),
                 ),
+              ),
           ],
         );
       },
@@ -144,8 +153,13 @@ class GoldenSpiralNav extends StatelessWidget {
 class _PanelPreview extends StatelessWidget {
   final GoldenSection section;
   final int index;
+  final bool showOverflowDot;
 
-  const _PanelPreview({required this.section, required this.index});
+  const _PanelPreview({
+    required this.section,
+    required this.index,
+    this.showOverflowDot = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -213,6 +227,20 @@ class _PanelPreview extends StatelessWidget {
                 ],
               ),
             ),
+            // Overflow indicator: small dot when more sections are hidden
+            if (showOverflowDot)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: fg.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
           ],
         );
       },

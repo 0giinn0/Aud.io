@@ -23,10 +23,14 @@ You know that thing where you want to listen to music but every app is either bl
 
 <table>
 <tr>
-<td align="center"><img src="docs/home.svg" width="200"/><br/><sub>Home — golden spiral nav + bento grid</sub></td>
-<td align="center"><img src="docs/now-playing.svg" width="200"/><br/><sub>Now Playing — vinyl record + controls</sub></td>
-<td align="center"><img src="docs/library.svg" width="200"/><br/><sub>Library — playlists, Spotify import, transfer</sub></td>
-<td align="center"><img src="docs/themes.svg" width="200"/><br/><sub>Settings — 7 theme presets, one-tap swap</sub></td>
+<td align="center"><img src="docs/screenshots/01-discover.png" width="200"/><br/><sub>Discover — golden spiral nav + search</sub></td>
+<td align="center"><img src="docs/screenshots/02-podcasts.png" width="200"/><br/><sub>Podcasts — categories + trending</sub></td>
+<td align="center"><img src="docs/screenshots/03-library.png" width="200"/><br/><sub>Library — playlists, Spotify import, transfer</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/04-settings.png" width="200"/><br/><sub>Settings — 7 theme presets, one-tap swap</sub></td>
+<td align="center"><img src="docs/screenshots/05-local.png" width="200"/><br/><sub>Local Files — scan device, pick folder or files</sub></td>
+<td align="center"><img src="docs/screenshots/06-account.png" width="200"/><br/><sub>Account — sign in, Google, Apple, sync</sub></td>
 </tr>
 </table>
 
@@ -47,7 +51,7 @@ You know that thing where you want to listen to music but every app is either bl
 - **Local files** — Scans your device for audio files. VLC-style. Finds your music so you don't have to dig through folders.
 - **Spotify import** — OAuth login, fetch your playlists, one tap to import.
 - **7 themes** — Ink & Red, Black & Grey, Black & Gold, Midnight Blue, Cream & Red, Pure White, Warm Sand.
-- **Golden spiral navigation** — 4 panels arranged using the golden ratio (φ ≈ 0.618). The active section fills the major rectangle; inactive sections spiral inward showing Bauhaus-style numbered tiles.
+- **Golden spiral navigation** — 6 sections arranged using the golden ratio (φ ≈ 0.618). The active section fills the major rectangle; up to 3 inactive sections spiral inward showing Bauhaus-style numbered tiles. Tapping cycles through all sections.
 - **Bento box UI** — Mixed-size cards with gradients, rounded corners, Fibonacci spacing.
 - **Downloads** — yt-dlp powered MP3 downloads. Your music, your files.
 - **Playlists & favourites** — Stored locally with Hive. No cloud required.

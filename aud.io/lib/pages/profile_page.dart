@@ -7,7 +7,6 @@ import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/core/models/playlist_model.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
-import 'package:aud_io/services/local_file_scanner.dart';
 import 'package:aud_io/services/spotify_auth_service.dart';
 import 'package:aud_io/services/settings_service.dart';
 import 'package:aud_io/widgets/track_context_sheet.dart';
@@ -23,15 +22,11 @@ class ProfilePage extends StatelessWidget {
       backgroundColor: AudIoTheme.bg,
       body: Consumer<LocalPlaylistService>(
           builder: (context, service, _) {
-            context.watch<LocalFileScanner>();
             return ListView(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
             children: [
               Text('Your Library', style: TextStyle(
                 fontSize: 22, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 20),
-
-              _buildAccountSection(context),
               const SizedBox(height: 20),
 
                // Row 1: Create + Favorites
@@ -59,9 +54,6 @@ class ProfilePage extends StatelessWidget {
               _buildTransferSection(context, service),
               const SizedBox(height: 24),
 
-              _buildLocalMusicSection(context),
-              const SizedBox(height: 24),
-
               _buildSpotifySection(context),
               const SizedBox(height: 24),
 
@@ -82,84 +74,6 @@ class ProfilePage extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildLocalMusicSection(BuildContext context) {
-    final scanner = context.watch<LocalFileScanner>();
-    final handler = context.watch<AppAudioHandler>();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text('Local Music', style: TextStyle(
-              fontSize: 12, color: AudIoTheme.muted, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
-            const Spacer(),
-            Text('${scanner.tracks.length} files', style: TextStyle(
-              fontSize: 10, color: AudIoTheme.subtle)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionCard(
-                icon: Icons.storage_rounded,
-                label: 'Scan Device',
-                sublabel: scanner.isScanning ? 'Scanning...' : 'Auto-find music',
-                onTap: scanner.isScanning ? null : () => scanner.scan(),
-                accent: AudIoTheme.primary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionCard(
-                icon: Icons.folder_open_rounded,
-                label: 'Pick Folder',
-                sublabel: 'Choose a directory',
-                onTap: scanner.isScanning ? null : () => scanner.pickDirectory(),
-                accent: AudIoTheme.primary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionCard(
-                icon: Icons.add_circle_outline,
-                label: 'Pick Files',
-                sublabel: 'Select audio files',
-                onTap: scanner.isScanning ? null : () => scanner.pickFiles(),
-                accent: AudIoTheme.primary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionCard(
-                icon: Icons.delete_sweep_outlined,
-                label: 'Clear',
-                sublabel: 'Remove all local tracks',
-                onTap: scanner.tracks.isEmpty ? null : () => scanner.clear(),
-                accent: AudIoTheme.error,
-              ),
-            ),
-          ],
-        ),
-        if (scanner.tracks.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text('Tracks', style: TextStyle(
-            fontSize: 10, color: AudIoTheme.subtle)),
-          const SizedBox(height: 8),
-          ...scanner.tracks.map((track) => _LocalFileTile(
-            track: track,
-            onPlay: () => handler.setQueue(scanner.tracks, startIndex: scanner.tracks.indexOf(track)),
-          )),
-        ],
-      ],
     );
   }
 
@@ -381,22 +295,6 @@ class ProfilePage extends StatelessWidget {
             fontSize: 9, color: AudIoTheme.subtle)),
         ],
       ),
-    );
-  }
-
-  Widget _buildAccountSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text('ACCOUNT', style: TextStyle(
-              fontSize: 12, color: AudIoTheme.muted, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _AccountCard(),
-      ],
     );
   }
 
@@ -1136,52 +1034,6 @@ class _LikedSongsPage extends StatelessWidget {
   }
 }
 
-class _LocalFileTile extends StatelessWidget {
-  final Track track;
-  final VoidCallback onPlay;
-
-  const _LocalFileTile({required this.track, required this.onPlay});
-
-  @override
-  Widget build(BuildContext context) {
-    final name = track.audioUrl?.split('/').last.split('\\').last ?? track.title;
-    return InkWell(
-      onTap: onPlay,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AudIoTheme.surface,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Container(width: 36, height: 36,
-              decoration: BoxDecoration(color: AudIoTheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
-              child: Icon(Icons.music_note_rounded, size: 16, color: AudIoTheme.subtle)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(track.title, style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface,
-                    fontWeight: FontWeight.w500),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Text(name, style: TextStyle(fontSize: 9, color: AudIoTheme.subtle),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                ],
-              ),
-            ),
-            Icon(Icons.play_arrow_rounded, size: 18, color: AudIoTheme.subtle),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _PlaylistTrackTile extends StatelessWidget {
   final Track track;
   final int index;
@@ -1374,255 +1226,3 @@ class _SpotifyPlaylistListState extends State<_SpotifyPlaylistList> {
   }
 }
 
-class _AccountCard extends StatefulWidget {
-  @override
-  State<_AccountCard> createState() => _AccountCardState();
-}
-
-class _AccountCardState extends State<_AccountCard> {
-  bool _isLoggedIn = false;
-  String _userName = '';
-  String _userEmail = '';
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoggedIn) {
-      return Container(
-        height: 80,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AudIoTheme.primary.withValues(alpha: 0.15), AudIoTheme.surface],
-          ),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: AudIoTheme.primary.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Center(
-                child: Text(_userName.isNotEmpty ? _userName[0].toUpperCase() : 'U',
-                  style: TextStyle(fontSize: 18, color: AudIoTheme.primary, fontWeight: FontWeight.w700)),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(_userName, style: TextStyle(
-                    fontSize: 14, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
-                  Text(_userEmail, style: TextStyle(
-                    fontSize: 10, color: AudIoTheme.subtle)),
-                ],
-              ),
-            ),
-            GestureDetector(
-              onTap: () => setState(() {
-                _isLoggedIn = false;
-                _userName = '';
-                _userEmail = '';
-              }),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AudIoTheme.error.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text('Logout', style: TextStyle(
-                  fontSize: 10, color: AudIoTheme.error, fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AudIoTheme.surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.person_rounded, size: 20, color: AudIoTheme.primary),
-              const SizedBox(width: 10),
-              Text('Sign in to sync', style: TextStyle(
-                fontSize: 14, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text('Save playlists, likes, and history across devices', style: TextStyle(
-            fontSize: 10, color: AudIoTheme.subtle)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _nameController,
-            style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface),
-            decoration: InputDecoration(
-              hintText: 'Name',
-              hintStyle: TextStyle(fontSize: 11, color: AudIoTheme.subtle),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              filled: true,
-              fillColor: AudIoTheme.surfaceVariant,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _emailController,
-            style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface),
-            decoration: InputDecoration(
-              hintText: 'Email',
-              hintStyle: TextStyle(fontSize: 11, color: AudIoTheme.subtle),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              filled: true,
-              fillColor: AudIoTheme.surfaceVariant,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _passwordController,
-            obscureText: true,
-            style: TextStyle(fontSize: 12, color: AudIoTheme.onSurface),
-            decoration: InputDecoration(
-              hintText: 'Password',
-              hintStyle: TextStyle(fontSize: 11, color: AudIoTheme.subtle),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              filled: true,
-              fillColor: AudIoTheme.surfaceVariant,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _isLoggedIn = true;
-                _userName = _nameController.text.isNotEmpty ? _nameController.text : 'User';
-                _userEmail = _emailController.text.isNotEmpty ? _emailController.text : 'user@email.com';
-              });
-            },
-            child: Container(
-              width: double.infinity,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AudIoTheme.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Text('Sign In', style: TextStyle(
-                  fontSize: 12, color: AudIoTheme.onBg, fontWeight: FontWeight.w700)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: Container(height: 1, color: AudIoTheme.surfaceVariant)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text('or', style: TextStyle(fontSize: 10, color: AudIoTheme.subtle)),
-              ),
-              Expanded(child: Container(height: 1, color: AudIoTheme.surfaceVariant)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isLoggedIn = true;
-                      _userName = 'Google User';
-                      _userEmail = 'user@gmail.com';
-                    });
-                  },
-                  child: Container(
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AudIoTheme.surfaceVariant,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.g_mobiledata_rounded, size: 18, color: AudIoTheme.onSurface),
-                          const SizedBox(width: 6),
-                          Text('Google', style: TextStyle(fontSize: 11, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isLoggedIn = true;
-                      _userName = 'Apple User';
-                      _userEmail = 'user@icloud.com';
-                    });
-                  },
-                  child: Container(
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AudIoTheme.surfaceVariant,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.apple_rounded, size: 16, color: AudIoTheme.onSurface),
-                          const SizedBox(width: 6),
-                          Text('Apple', style: TextStyle(fontSize: 11, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}

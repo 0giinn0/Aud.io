@@ -21,6 +21,8 @@ import 'package:aud_io/pages/profile_page.dart';
 import 'package:aud_io/pages/now_playing_page.dart';
 import 'package:aud_io/pages/settings_page.dart';
 import 'package:aud_io/pages/podcast_page.dart';
+import 'package:aud_io/pages/local_files_page.dart';
+import 'package:aud_io/pages/account_page.dart';
 import 'package:aud_io/widgets/mini_player.dart';
 import 'package:aud_io/widgets/golden_spiral_nav.dart';
 import 'package:aud_io/widgets/loading_bar.dart';
@@ -326,6 +328,20 @@ class _AppShellState extends State<AppShell> {
                           panelColor: AudIoTheme.cream,
                           panelForeground: AudIoTheme.red,
                           page: SettingsPage(),
+                        ),
+                        const GoldenSection(
+                          label: 'LOCAL',
+                          icon: Icons.folder_rounded,
+                          panelColor: AudIoTheme.ink,
+                          panelForeground: AudIoTheme.cream,
+                          page: LocalFilesPage(),
+                        ),
+                        const GoldenSection(
+                          label: 'ACCOUNT',
+                          icon: Icons.person_rounded,
+                          panelColor: AudIoTheme.cream,
+                          panelForeground: AudIoTheme.ink,
+                          page: AccountPage(),
                         ),
                       ],
                     ),
