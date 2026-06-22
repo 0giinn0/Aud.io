@@ -440,7 +440,8 @@ class SettingsPage extends StatelessWidget {
       ),
     );
     if (confirmed == true) {
-      await downloadService.clearAll();
+      final svc = context.read<DownloadService>();
+      await svc.clearAll();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Downloads cleared')));
