@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:dart_ytmusic_api/yt_music.dart';
 import 'package:aud_io/core/models/track.dart';
-import 'api_service.dart';
+import 'package:aud_io/services/api_service.dart';
 
 class YouTubeMusicService {
   YouTubeMusicService._();
@@ -36,12 +36,13 @@ class YouTubeMusicService {
     if (!_instance._initialized) await initialize();
 
     if (kIsWeb) {
-      // Web has no client-side InnerTube access (CORS) and no server is
-      // deployed by default. If BASE_URL is configured we can still proxy.
+      // Web has no client-side InnerTube access (CORS). If a dedicated
+      // server is configured, use it. Otherwise, try the public CORS
+      // proxy approach (POST through a CORS-bypassing endpoint).
       if (ApiService.hasServer) {
         return _proxySearch('/api/ytmusic/search', query, limit);
       }
-      return [];
+      return _corsProxySearch(query, limit);
     }
 
     if (_instance._ytmusic == null) return [];
@@ -74,7 +75,7 @@ class YouTubeMusicService {
       if (ApiService.hasServer) {
         return _proxySearch('/api/ytmusic/videos', query, limit);
       }
-      return [];
+      return _corsProxySearch(query, limit);
     }
 
     if (_instance._ytmusic == null) return [];
@@ -128,10 +129,124 @@ class YouTubeMusicService {
     }
   }
 
+  /// Search YouTube Music on web by POSTing to the InnerTube API through
+  /// a public CORS proxy. The proxy bypasses the browser's CORS
+  /// restrictions so the web app can search YouTube without a backend.
+  static Future<List<Track>> _corsProxySearch(String query, int limit) async {
+    try {
+      const innerTubeKey = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+      const innerTubeUrl =
+          'https://music.youtube.com/youtubei/v1/search?alt=json&key=$innerTubeKey';
+
+      final context = {
+        'context': {
+          'client': {
+            'hl': 'en',
+            'gl': 'US',
+            'clientName': 'WEB_REMIX',
+            'clientVersion': '1.20240101.00.00',
+          },
+        },
+        'query': query,
+        'params': 'EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D',
+      };
+
+      // Use corsproxy.io which supports POST with custom headers.
+      final proxyUrl = 'https://corsproxy.io/?url=${Uri.encodeComponent(innerTubeUrl)}';
+      final resp = await http
+          .post(
+            Uri.parse(proxyUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Origin': 'https://music.youtube.com',
+              'Referer': 'https://music.youtube.com/',
+            },
+            body: jsonEncode(context),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (resp.statusCode != 200) {
+        debugPrint('aud.io: YTMusic CORS proxy search HTTP ${resp.statusCode}');
+        return [];
+      }
+
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      final sections = (body['contents']?['tabbedSearchResultsRenderer']?['tabs']
+              as List?)
+              ?.firstOrNull?['tabRenderer']?['content']?['sectionListRenderer']
+              ?['contents'] as List? ??
+          [];
+      final items = <Track>[];
+      for (final section in sections) {
+        final s = section as Map<String, dynamic>;
+        final contents = (s['musicShelfRenderer']?['contents'] ??
+                s['musicPlaylistShelfRenderer']?['contents']) as List? ??
+            [];
+        for (final c in contents) {
+          final song = (c as Map<String, dynamic>)['musicResponsiveListItemRenderer']
+              as Map<String, dynamic>?;
+          if (song == null) continue;
+          final title = (song['flexColumns'] as List?)
+                  ?.firstOrNull?['musicResponsiveListItemFlexColumnRenderer']
+              ?['text']?['runs']?['first']?['text'] ??
+              '';
+          final artist = ((song['flexColumns'] as List?)?.elementAt(1)
+                      ?['musicResponsiveListItemFlexColumnRenderer']?['text']
+                  ?['runs'] as List?)
+                  ?.firstOrNull?['text'] ??
+              'Unknown';
+          final videoId = song['overlay']?['musicItemThumbnailOverlayRenderer']
+                  ?['content']?['musicPlayButtonRenderer']?['playNavigationEndpoint']
+                  ?['watchEndpoint']?['videoId'] ??
+              '';
+          final durationText = ((song['flexColumns'] as List?)?.elementAt(2)
+                  ?['musicResponsiveListItemFlexColumnRenderer']?['text']?['runs']
+              as List?)
+              ?.firstOrNull?['text'] ??
+              '';
+          final thumbnails = song['thumbnail']?['musicThumbnailThumbnailRenderer']
+                  ?['thumbnails'] as List? ??
+              [];
+          if (title.isEmpty || videoId.isEmpty) continue;
+          int duration = 0;
+          if (durationText.isNotEmpty) {
+            final parts = durationText.split(':').map(int.tryParse).toList();
+            if (parts.length == 2) {
+              duration = parts[0]! * 60 + parts[1]!;
+            } else if (parts.length == 3) {
+              duration = parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
+            }
+          }
+          items.add(Track(
+            id: videoId,
+            title: title,
+            artist: artist,
+            thumbnailUrl: _extractThumbUrl(thumbnails),
+            duration: duration,
+            source: TrackSource.youtube,
+          ));
+          if (items.length >= limit) break;
+        }
+        if (items.length >= limit) break;
+      }
+      return items;
+    } catch (e) {
+      debugPrint('aud.io: YTMusic CORS proxy search error: $e');
+      return [];
+    }
+  }
+
   static Future<List<Track>> searchAll(String query, {int limit = 20}) async {
     final songs = await searchSongs(query, limit: limit);
     if (songs.length >= limit) return songs.take(limit).toList();
     final videos = await searchVideos(query, limit: limit - songs.length);
     return [...songs, ...videos].take(limit).toList();
+  }
+
+  static String? _extractThumbUrl(List? thumbnails) {
+    if (thumbnails == null || thumbnails.isEmpty) return null;
+    final first = thumbnails.first as Map<String, dynamic>?;
+    return first?['url'] as String?;
   }
 }

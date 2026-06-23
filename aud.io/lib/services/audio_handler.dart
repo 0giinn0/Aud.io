@@ -7,6 +7,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/api_service.dart';
 import 'package:aud_io/services/youtube_explode_service.dart';
+import 'package:aud_io/services/cors_proxy.dart';
 
 class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
   final AudioPlayer _player = AudioPlayer();
@@ -121,10 +122,13 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
 
   Uri? _proxiedArtUri(String? thumbnailUrl) {
     if (thumbnailUrl == null || thumbnailUrl.isEmpty) return null;
-    // On web, route artwork through the image proxy to fix CORS
+    // On web, route artwork through a proxy to fix CORS
     // (most podcast/FMA CDNs don't send Access-Control-Allow-Origin).
-    if (kIsWeb && ApiService.hasServer) {
-      return Uri.parse(ApiService.proxyImageUrl(thumbnailUrl));
+    if (kIsWeb) {
+      if (ApiService.hasServer) {
+        return Uri.parse(ApiService.proxyImageUrl(thumbnailUrl));
+      }
+      return Uri.parse(CorsProxy.wrap(thumbnailUrl));
     }
     return Uri.tryParse(thumbnailUrl);
   }
@@ -252,17 +256,27 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
       case TrackSource.podcast:
         final purl = track.audioUrl;
         if (purl == null) return null;
-        // Podcast hosts rarely send CORS headers, so on web go through the
-        // generic proxy (if a server is configured); native can hit the URL
-        // directly.
-        return Uri.parse(
-            kIsWeb && ApiService.hasServer ? ApiService.proxyDirectUrl(purl) : purl);
+        // Podcast hosts rarely send CORS headers, so on web go through a
+        // proxy; native can hit the URL directly.
+        if (kIsWeb) {
+          if (ApiService.hasServer) {
+            return Uri.parse(ApiService.proxyDirectUrl(purl));
+          }
+          return Uri.parse(CorsProxy.wrap(purl));
+        }
+        return Uri.parse(purl);
       case TrackSource.soundcloud:
         // Mobile: resolve a direct SoundCloud stream URL client-side.
-        // Web: route through the server proxy if configured.
+        // Web: resolve the URL then wrap through the CORS proxy.
         if (kIsWeb) {
           if (ApiService.hasServer) {
             return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
+          }
+          final scCached = track.audioUrl;
+          final scUrl = scCached ?? await ApiService.getStreamUrl(track.id, track.source);
+          if (scUrl != null) {
+            if (scCached == null) track.audioUrl = scUrl;
+            return Uri.parse(CorsProxy.wrap(scUrl));
           }
           return null;
         }

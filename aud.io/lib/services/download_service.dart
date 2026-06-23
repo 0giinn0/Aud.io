@@ -6,6 +6,7 @@ import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/api_service.dart';
 import 'package:aud_io/services/soundcloud_service.dart';
 import 'package:aud_io/services/youtube_explode_service.dart';
+import 'package:aud_io/services/cors_proxy.dart';
 import 'download_platform.dart' if (dart.library.html) 'download_platform_web.dart';
 
 // Notification callback type
@@ -92,7 +93,11 @@ class DownloadService extends ChangeNotifier {
 
       if (kIsWeb) {
         // Web: open the URL in a new tab to trigger the browser download.
-        triggerDownload(audioUrl, trackTitle ?? id);
+        // Wrap through the CORS proxy so the browser allows the download.
+        final webUrl = ApiService.hasServer
+            ? audioUrl
+            : CorsProxy.wrap(audioUrl);
+        triggerDownload(webUrl, trackTitle ?? id);
         task.status = DownloadStatus.completed;
         task.progress = 1.0;
         _notify(DownloadNotification(id: id, type: DownloadNotificationType.completed, title: trackTitle ?? 'Download complete', progress: 1.0));
@@ -143,11 +148,11 @@ class DownloadService extends ChangeNotifier {
 
     try {
       if (kIsWeb) {
-        // Web: trigger browser download of the audio URL directly, or via
-        // the server proxy if one is configured (CORS workaround).
+        // Web: trigger browser download of the audio URL — through the
+        // CORS proxy if no dedicated server is configured.
         final downloadUrl = ApiService.hasServer
             ? ApiService.proxyDirectUrl(audioUrl)
-            : audioUrl;
+            : CorsProxy.wrap(audioUrl);
         triggerDownload(downloadUrl, title ?? episodeId);
         task.status = DownloadStatus.completed;
         task.progress = 1.0;

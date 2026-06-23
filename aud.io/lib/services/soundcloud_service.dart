@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/track.dart';
+import 'package:aud_io/services/cors_proxy.dart';
 
 /// Client-side SoundCloud integration.
 ///
@@ -30,12 +31,8 @@ class SoundCloudService {
   static Future<bool> _isValidClientId(String id) async {
     try {
       final resp = await http.get(
-        Uri.parse('https://api-v2.soundcloud.com/search/tracks')
-            .replace(queryParameters: {
-          'q': 'test',
-          'client_id': id,
-          'limit': '1',
-        }),
+        Uri.parse(CorsProxy.wrap(
+            'https://api-v2.soundcloud.com/search/tracks?q=test&client_id=$id&limit=1')),
         headers: {'User-Agent': _userAgent},
       ).timeout(const Duration(seconds: 6));
       return resp.statusCode == 200;
@@ -63,7 +60,7 @@ class SoundCloudService {
     // 2. Scrape the public web client from soundcloud.com.
     try {
       final resp = await http
-          .get(Uri.parse('https://soundcloud.com'),
+          .get(Uri.parse(CorsProxy.wrap('https://soundcloud.com')),
               headers: {'User-Agent': _userAgent})
           .timeout(_timeout);
       final html = resp.body;
@@ -89,7 +86,8 @@ class SoundCloudService {
       for (final url in scriptUrls) {
         try {
           final jsResp = await http
-              .get(Uri.parse(url), headers: {'User-Agent': _userAgent})
+              .get(Uri.parse(CorsProxy.wrap(url)),
+                  headers: {'User-Agent': _userAgent})
               .timeout(const Duration(seconds: 6));
           final m = RegExp(r'client_id:"([^"]+)"').firstMatch(jsResp.body);
           if (m != null && await _isValidClientId(m[1]!)) {
@@ -118,13 +116,8 @@ class SoundCloudService {
     }
     try {
       final resp = await http.get(
-        Uri.parse('https://api-v2.soundcloud.com/search/tracks')
-            .replace(queryParameters: {
-          'q': query,
-          'client_id': clientId,
-          'limit': '$limit',
-          'offset': '0',
-        }),
+        Uri.parse(CorsProxy.wrap(
+            'https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeQueryComponent(query)}&client_id=$clientId&limit=$limit&offset=0')),
         headers: {
           'User-Agent': _userAgent,
           'Accept': 'application/json',
@@ -167,8 +160,8 @@ class SoundCloudService {
     final scId = trackId.replaceFirst('sc_', '');
     try {
       final trackResp = await http.get(
-        Uri.parse('https://api-v2.soundcloud.com/tracks/$scId')
-            .replace(queryParameters: {'client_id': clientId}),
+        Uri.parse(CorsProxy.wrap(
+            'https://api-v2.soundcloud.com/tracks/$scId?client_id=$clientId')),
         headers: {'User-Agent': _userAgent, 'Accept': 'application/json'},
       ).timeout(_timeout);
       if (trackResp.statusCode == 401) {
@@ -205,7 +198,7 @@ class SoundCloudService {
       if (url == null) return null;
 
       final resolveResp = await http.get(
-        Uri.parse(url).replace(queryParameters: {'client_id': clientId}),
+        Uri.parse(CorsProxy.wrap('$url?client_id=$clientId')),
         headers: {'User-Agent': _userAgent, 'Accept': 'application/json'},
       ).timeout(_timeout);
       if (resolveResp.statusCode != 200) return null;

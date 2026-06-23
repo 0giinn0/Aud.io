@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/podcast.dart';
+import 'package:aud_io/services/cors_proxy.dart';
 
 /// Client-side Podcast Index API integration.
 ///
@@ -49,8 +50,8 @@ class PodcastService {
     if (query.isEmpty) return [];
     try {
       final resp = await http.get(
-        Uri.parse(_freeSearchBase)
-            .replace(queryParameters: {'term': query, 'entity': 'podcast'}),
+        Uri.parse(CorsProxy.wrap(
+            '$_freeSearchBase?term=${Uri.encodeQueryComponent(query)}&entity=podcast')),
         headers: {'User-Agent': _userAgent},
       ).timeout(_timeout);
       if (resp.statusCode != 200) return [];
@@ -83,8 +84,8 @@ class PodcastService {
     }
     try {
       final resp = await http.get(
-        Uri.parse('$_authBase/podcasts/trending')
-            .replace(queryParameters: {'max': '$max', 'lang': lang}),
+        Uri.parse(CorsProxy.wrap(
+            '$_authBase/podcasts/trending?max=$max&lang=$lang')),
         headers: headers,
       ).timeout(_timeout);
       if (resp.statusCode != 200) return [];
@@ -114,7 +115,7 @@ class PodcastService {
     if (headers == null) return null;
     try {
       final podResp = await http.get(
-        Uri.parse('$_authBase/podcasts/byfeedid?id=$feedId'),
+        Uri.parse(CorsProxy.wrap('$_authBase/podcasts/byfeedid?id=$feedId')),
         headers: headers,
       ).timeout(_timeout);
       if (podResp.statusCode != 200) return null;
@@ -123,7 +124,8 @@ class PodcastService {
       if (feed == null) return null;
 
       final epResp = await http.get(
-        Uri.parse('$_authBase/episodes/byfeedid?id=$feedId&max=$maxEpisodes'),
+        Uri.parse(CorsProxy.wrap(
+            '$_authBase/episodes/byfeedid?id=$feedId&max=$maxEpisodes')),
         headers: headers,
       ).timeout(_timeout);
       List<PodcastEpisode> episodes = [];
@@ -168,7 +170,8 @@ class PodcastService {
       String feedUrl, int max) async {
     try {
       final resp = await http
-          .get(Uri.parse(feedUrl), headers: {'User-Agent': _userAgent})
+          .get(Uri.parse(CorsProxy.wrap(feedUrl)),
+              headers: {'User-Agent': _userAgent})
           .timeout(_timeout);
       if (resp.statusCode != 200) return [];
       return _parseRss(resp.body, max);
