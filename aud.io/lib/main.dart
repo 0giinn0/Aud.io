@@ -26,8 +26,7 @@ import 'package:aud_io/pages/account_page.dart';
 import 'package:aud_io/widgets/mini_player.dart';
 import 'package:aud_io/widgets/golden_spiral_nav.dart';
 import 'package:aud_io/widgets/loading_bar.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'package:web/web.dart' as web;
+import 'package:aud_io/utils/web_history.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -210,7 +209,7 @@ class _AppShellState extends State<AppShell> {
       // Clear the URL parameters
       if (uri.queryParameters.containsKey('code')) {
         final cleanUri = uri.replace(queryParameters: {});
-        web.window.history.replaceState(null, '', cleanUri.toString());
+        replaceUrl(cleanUri.toString());
       }
     }
   }
