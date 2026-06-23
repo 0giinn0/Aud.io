@@ -17,7 +17,7 @@ class YouTubeMusicService {
     if (_instance._initialized) return;
     if (kIsWeb) {
       _instance._initialized = true;
-      debugPrint('aud.io: YTMusic initialized (web: using server proxy)');
+      debugPrint('aud.io: YTMusic initialized (web: no client-side API)');
       return;
     }
     try {
@@ -36,7 +36,12 @@ class YouTubeMusicService {
     if (!_instance._initialized) await initialize();
 
     if (kIsWeb) {
-      return _proxySearch('/api/ytmusic/search', query, limit);
+      // Web has no client-side InnerTube access (CORS) and no server is
+      // deployed by default. If BASE_URL is configured we can still proxy.
+      if (ApiService.hasServer) {
+        return _proxySearch('/api/ytmusic/search', query, limit);
+      }
+      return [];
     }
 
     if (_instance._ytmusic == null) return [];
@@ -66,7 +71,10 @@ class YouTubeMusicService {
     if (!_instance._initialized) await initialize();
 
     if (kIsWeb) {
-      return _proxySearch('/api/ytmusic/videos', query, limit);
+      if (ApiService.hasServer) {
+        return _proxySearch('/api/ytmusic/videos', query, limit);
+      }
+      return [];
     }
 
     if (_instance._ytmusic == null) return [];

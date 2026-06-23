@@ -1,14 +1,12 @@
-﻿import 'dart:convert';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/theme/theme_presets.dart';
 import 'package:aud_io/services/settings_service.dart';
 import 'package:aud_io/services/download_service.dart';
 import 'package:aud_io/services/local_playlist_service.dart';
-import 'package:aud_io/services/api_service.dart';
+import 'package:aud_io/services/youtube_music_service.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -56,8 +54,8 @@ class SettingsPage extends StatelessWidget {
           _buildLibraryCard(context),
           const SizedBox(height: 12),
 
-          // Row 5: Live server status
-          const _ServerStatusCard(),
+          // Row 5: Source availability
+          const _SourcesCard(),
         ],
       ),
     );
@@ -423,7 +421,7 @@ class SettingsPage extends StatelessWidget {
   }
 
   Future<void> _clearCache(BuildContext context) async {
-    final downloadService = context.read<DownloadService>();
+    final svc = context.read<DownloadService>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -440,7 +438,6 @@ class SettingsPage extends StatelessWidget {
       ),
     );
     if (confirmed == true) {
-      final svc = context.read<DownloadService>();
       await svc.clearAll();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -450,110 +447,82 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-class _ServerStatusCard extends StatefulWidget {
-  const _ServerStatusCard();
-
-  @override
-  State<_ServerStatusCard> createState() => _ServerStatusCardState();
-}
-
-class _ServerStatusCardState extends State<_ServerStatusCard> {
-  bool _loading = true;
-  bool _online = false;
-  String _detail = 'checking…';
-
-  @override
-  void initState() {
-    super.initState();
-    _check();
-  }
-
-  Future<void> _check() async {
-    setState(() { _loading = true; _detail = 'checking…'; });
-    try {
-      final r = await http
-          .get(Uri.parse('${ApiService.baseUrl}/health'))
-          .timeout(const Duration(seconds: 60));
-      if (r.statusCode == 200) {
-        final body = jsonDecode(r.body) as Map<String, dynamic>;
-        final up = (body['uptime'] as num?)?.toInt() ?? 0;
-        setState(() { _online = true; _detail = 'up ${_fmtUptime(up)}'; });
-      } else {
-        setState(() { _online = false; _detail = 'HTTP ${r.statusCode}'; });
-      }
-    } catch (_) {
-      setState(() { _online = false; _detail = 'unreachable'; });
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  String _fmtUptime(int s) {
-    if (s >= 3600) return '${(s / 3600).floor()}h';
-    if (s >= 60) return '${(s / 60).floor()}m';
-    return '${s}s';
-  }
-
-  String get _host {
-    final u = Uri.tryParse(ApiService.baseUrl);
-    return u?.host ?? ApiService.baseUrl;
-  }
+class _SourcesCard extends StatelessWidget {
+  const _SourcesCard();
 
   @override
   Widget build(BuildContext context) {
-    final color = _online ? AudIoTheme.primary : AudIoTheme.error;
-    return GestureDetector(
-      onTap: _loading ? null : _check,
-      child: _BentoCard(
-        height: 80,
-        gradient: [color.withValues(alpha: 0.08), AudIoTheme.surface],
-        child: Row(
-          children: [
-            Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(Icons.dns_rounded, size: 20, color: color),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Server', style: TextStyle(
-                    fontSize: 13, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
-                  Text(_host, style: TextStyle(fontSize: 10, color: AudIoTheme.subtle),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_loading)
-                    SizedBox(width: 10, height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: color))
-                  else
-                    Container(width: 6, height: 6,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
-                  const SizedBox(width: 6),
-                  Text(_loading ? 'check' : (_online ? _detail : 'offline'),
-                    style: TextStyle(fontSize: 10, color: color)),
-                ],
-              ),
-            ),
-          ],
-        ),
+    final ytOn = YouTubeMusicService.isAvailable;
+    final podKey = const String.fromEnvironment('PODCAST_INDEX_API_KEY');
+    final podOn = podKey.isNotEmpty;
+    final scEnv = const String.fromEnvironment('SOUNDCLOUD_CLIENT_ID');
+    final scOn = scEnv.isNotEmpty;
+
+    final sources = <_SourceBadge>[
+      _SourceBadge('YouTube', ytOn, Icons.play_circle_rounded),
+      _SourceBadge('SoundCloud', scOn || true, Icons.cloud_rounded),
+      _SourceBadge('Podcasts', podOn, Icons.podcasts_rounded),
+    ];
+
+    return _BentoCard(
+      height: 110,
+      gradient: [AudIoTheme.primary.withValues(alpha: 0.08), AudIoTheme.surface],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.hub_rounded, size: 16, color: AudIoTheme.primary),
+              const SizedBox(width: 6),
+              Text('SOURCES', style: TextStyle(
+                fontSize: 10, color: AudIoTheme.muted, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+            ],
+          ),
+          const Spacer(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: sources
+                .map((s) => _SourcePill(badge: s))
+                .toList(),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _SourceBadge {
+  final String label;
+  final bool on;
+  final IconData icon;
+  _SourceBadge(this.label, this.on, this.icon);
+}
+
+class _SourcePill extends StatelessWidget {
+  final _SourceBadge badge;
+  const _SourcePill({required this.badge});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = badge.on ? AudIoTheme.primary : AudIoTheme.subtle;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 32, height: 32,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(badge.icon, size: 16, color: color),
+        ),
+        const SizedBox(height: 6),
+        Text(badge.label, style: TextStyle(
+          fontSize: 9, color: AudIoTheme.onSurface, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 2),
+        Text(badge.on ? 'ready' : 'limited', style: TextStyle(
+          fontSize: 8, color: color)),
+      ],
     );
   }
 }

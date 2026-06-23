@@ -1,18 +1,30 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/core/models/podcast.dart';
+import 'package:aud_io/services/soundcloud_service.dart';
+import 'package:aud_io/services/podcast_service.dart';
 
+/// Network entry point for the Flutter app.
+///
+/// The APK is fully self-contained — there is no Node.js server to deploy.
+/// YouTube search/stream is handled by `youtube_explode_dart` and
+/// `dart_ytmusic_api`; SoundCloud and Podcasts are handled by
+/// [SoundCloudService] and [PodcastService] respectively.
+///
+/// `baseUrl` is now only used by optional features (Spotify import) that
+/// still need an OAuth token-exchange backend. Set `BASE_URL` via
+/// `--dart-define=BASE_URL=...` at build time to enable them; otherwise
+/// those features are disabled gracefully.
 class ApiService {
   ApiService._();
 
   static String get baseUrl {
     const envUrl = String.fromEnvironment('BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
-    if (kIsWeb) return 'https://aud-io.onrender.com';
-    return 'http://10.0.2.2:3000';
+    return '';
   }
+
+  static bool get hasServer => baseUrl.isNotEmpty;
 
   static String proxyAudioUrl(String id, TrackSource source) {
     final sourceStr = source == TrackSource.soundcloud ? 'soundcloud' : 'youtube';
@@ -23,86 +35,53 @@ class ApiService {
     return '$baseUrl/api/proxy?url=${Uri.encodeComponent(url)}';
   }
 
-  static Future<String?> getStreamUrl(String id, TrackSource source) async {
-    try {
-      final url = proxyAudioUrl(id, source);
-      final resp = await http.head(Uri.parse(url)).timeout(const Duration(seconds: 15));
-      if (resp.statusCode < 400) return url;
-      return null;
-    } catch (_) {
-      return null;
-    }
+  static String proxyImageUrl(String url) {
+    return '$baseUrl/api/proxy-image?url=${Uri.encodeComponent(url)}';
   }
 
+  /// Resolve a playable audio URL for [id] / [source] using client-side logic.
+  /// Only falls back to the optional server proxy if `BASE_URL` is set.
+  static Future<String?> getStreamUrl(String id, TrackSource source) async {
+    if (source == TrackSource.soundcloud) {
+      return SoundCloudService.resolveStreamUrl(id);
+    }
+    if (hasServer) {
+      try {
+        final url = proxyAudioUrl(id, source);
+        final resp = await http.head(Uri.parse(url))
+            .timeout(const Duration(seconds: 15));
+        if (resp.statusCode < 400) return url;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  /// Search SoundCloud directly from the device.
   static Future<List<Track>> search(String query) async {
     if (query.isEmpty) return [];
-    try {
-      final resp = await http
-          .get(Uri.parse('$baseUrl/api/search?q=${Uri.encodeQueryComponent(query)}&max=20'))
-          .timeout(const Duration(seconds: 15));
-      if (resp.statusCode != 200) return [];
-      final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final results = data['results'] as List<dynamic>? ?? [];
-      return results.map((r) => Track.fromApiJson(r as Map<String, dynamic>)).toList();
-    } catch (_) {
-      return [];
-    }
+    return SoundCloudService.search(query, limit: 20);
   }
 
-  // ── Podcast API ──
+  // ── Podcast API (direct, no server) ──
 
-  static Future<List<Podcast>> getTrendingPodcasts({int max = 20, String lang = 'en'}) async {
-    try {
-      final resp = await http
-          .get(Uri.parse('$baseUrl/api/podcasts/trending?max=$max&lang=$lang'))
-          .timeout(const Duration(seconds: 15));
-      if (resp.statusCode != 200) return [];
-      final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final results = data['results'] as List<dynamic>? ?? [];
-      return results.map((r) => Podcast.fromJson(r as Map<String, dynamic>)).toList();
-    } catch (_) {
-      return [];
-    }
+  static Future<List<Podcast>> getTrendingPodcasts(
+      {int max = 20, String lang = 'en'}) async {
+    return PodcastService.trending(max: max, lang: lang);
   }
 
-  static Future<List<Podcast>> searchPodcasts(String query, {int maxResults = 10}) async {
+  static Future<List<Podcast>> searchPodcasts(String query,
+      {int maxResults = 10}) async {
     if (query.isEmpty) return [];
-    try {
-      final resp = await http
-          .get(Uri.parse('$baseUrl/api/podcasts/search?q=${Uri.encodeQueryComponent(query)}&max=$maxResults'))
-          .timeout(const Duration(seconds: 15));
-      if (resp.statusCode != 200) return [];
-      final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final results = data['results'] as List<dynamic>? ?? [];
-      return results.map((r) => Podcast.fromJson(r as Map<String, dynamic>)).toList();
-    } catch (_) {
-      return [];
-    }
+    return PodcastService.search(query, max: maxResults);
   }
 
-  static Future<List<PodcastEpisode>> getEpisodesFromFeed(String feedUrl, {int max = 20}) async {
-    try {
-      final resp = await http
-          .get(Uri.parse('$baseUrl/api/podcasts/feed?url=${Uri.encodeQueryComponent(feedUrl)}&max=$max'))
-          .timeout(const Duration(seconds: 15));
-      if (resp.statusCode != 200) return [];
-      final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final episodes = data['episodes'] as List<dynamic>? ?? [];
-      return episodes.map((e) => PodcastEpisode.fromJson(e as Map<String, dynamic>)).toList();
-    } catch (_) {
-      return [];
-    }
+  static Future<List<PodcastEpisode>> getEpisodesFromFeed(String feedUrl,
+      {int max = 20}) async {
+    return PodcastService.episodesFromFeed(feedUrl, max);
   }
 
-  static Future<Podcast?> getPodcastDetails(String podcastId, {int maxEpisodes = 10}) async {
-    try {
-      final resp = await http
-          .get(Uri.parse('$baseUrl/api/podcasts/podcast/$podcastId?episodes=$maxEpisodes'))
-          .timeout(const Duration(seconds: 15));
-      if (resp.statusCode != 200) return null;
-      return Podcast.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
-    } catch (_) {
-      return null;
-    }
+  static Future<Podcast?> getPodcastDetails(String podcastId,
+      {int maxEpisodes = 10}) async {
+    return PodcastService.details(podcastId, maxEpisodes: maxEpisodes);
   }
 }

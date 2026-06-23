@@ -4,6 +4,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/api_service.dart';
+import 'package:aud_io/services/soundcloud_service.dart';
+import 'package:aud_io/services/youtube_explode_service.dart';
 import 'download_platform.dart' if (dart.library.html) 'download_platform_web.dart';
 
 // Notification callback type
@@ -59,7 +61,8 @@ class DownloadService extends ChangeNotifier {
 
   String? getLocalPath(String id) => _localFiles[id];
 
-  /// Download a YouTube/SoundCloud track
+  /// Download a YouTube/SoundCloud track directly from the resolved stream
+  /// URL. No server is required — the APK does everything client-side.
   Future<void> downloadTrack(String id, TrackSource source, {String? trackTitle}) async {
     if (_tasks.containsKey(id)) return;
     if (isDownloaded(id)) return;
@@ -70,22 +73,26 @@ class DownloadService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final baseUrl = ApiService.baseUrl;
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/download'),
-        headers: {'Content-Type': 'application/json'},
-        body: '{"id":"$id","source":"${source == TrackSource.soundcloud ? "soundcloud" : "youtube"}"}',
-      ).timeout(const Duration(minutes: 3));
-
-      if (response.statusCode != 200) {
-        throw Exception('Server error: ${response.statusCode}');
+      // Resolve a direct audio URL for the source.
+      String? audioUrl;
+      if (source == TrackSource.soundcloud) {
+        audioUrl = await SoundCloudService.resolveStreamUrl(id);
+      } else if (source == TrackSource.youtube) {
+        audioUrl = await YouTubeExplodeService.getAudioUrl(id);
       }
 
-      final fileUrl = '$baseUrl/api/download/$id';
+      // Fallback to server proxy if configured.
+      if (audioUrl == null && ApiService.hasServer) {
+        audioUrl = ApiService.proxyAudioUrl(id, source);
+      }
+
+      if (audioUrl == null) {
+        throw Exception('Could not resolve a stream URL for $id');
+      }
 
       if (kIsWeb) {
-        // Web: open download URL in new tab to trigger browser's native download
-        triggerDownload(fileUrl, trackTitle ?? id);
+        // Web: open the URL in a new tab to trigger the browser download.
+        triggerDownload(audioUrl, trackTitle ?? id);
         task.status = DownloadStatus.completed;
         task.progress = 1.0;
         _notify(DownloadNotification(id: id, type: DownloadNotificationType.completed, title: trackTitle ?? 'Download complete', progress: 1.0));
@@ -93,9 +100,9 @@ class DownloadService extends ChangeNotifier {
         return;
       }
 
-      // Mobile: stream to local file
-      final req = http.Request('GET', Uri.parse(fileUrl));
-      final streamed = await http.Client().send(req);
+      // Mobile: stream to a local file.
+      final req = http.Request('GET', Uri.parse(audioUrl));
+      final streamed = await http.Client().send(req).timeout(const Duration(minutes: 5));
       final totalBytes = streamed.contentLength ?? 0;
       int receivedBytes = 0;
 
@@ -136,8 +143,12 @@ class DownloadService extends ChangeNotifier {
 
     try {
       if (kIsWeb) {
-        // Web: trigger browser download of the audio URL directly
-        triggerDownload(ApiService.proxyDirectUrl(audioUrl), title ?? episodeId);
+        // Web: trigger browser download of the audio URL directly, or via
+        // the server proxy if one is configured (CORS workaround).
+        final downloadUrl = ApiService.hasServer
+            ? ApiService.proxyDirectUrl(audioUrl)
+            : audioUrl;
+        triggerDownload(downloadUrl, title ?? episodeId);
         task.status = DownloadStatus.completed;
         task.progress = 1.0;
         _notify(DownloadNotification(id: episodeId, type: DownloadNotificationType.completed, title: title ?? 'Download complete', progress: 1.0));
@@ -145,10 +156,8 @@ class DownloadService extends ChangeNotifier {
         return;
       }
 
-      // Mobile: stream to local file via proxy
-      final baseUrl = ApiService.baseUrl;
-      final proxyUrl = '$baseUrl/api/proxy?url=${Uri.encodeQueryComponent(audioUrl)}';
-      final req = http.Request('GET', Uri.parse(proxyUrl));
+      // Mobile: stream straight from the upstream audio URL — no proxy.
+      final req = http.Request('GET', Uri.parse(audioUrl));
       final streamed = await http.Client().send(req).timeout(const Duration(minutes: 5));
       final totalBytes = streamed.contentLength ?? 0;
       int receivedBytes = 0;

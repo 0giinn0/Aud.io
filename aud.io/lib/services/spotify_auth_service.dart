@@ -68,7 +68,7 @@ class SpotifyPlaylist {
 
 class SpotifyAuthService extends ChangeNotifier {
   static const _clientId = 'c2a22ea075c24aefb1f0d35506c3cecd';
-  static const _redirectUri = 'https://aud-io-web.pages.dev/callback';
+  static const _redirectUri = 'https://0giinn0.github.io/Aud.io/callback';
   static const _scopes = 'playlist-read-private playlist-read-collaborative user-read-private';
 
   String? _accessToken;

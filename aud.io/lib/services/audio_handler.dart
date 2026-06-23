@@ -123,8 +123,8 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
     if (thumbnailUrl == null || thumbnailUrl.isEmpty) return null;
     // On web, route artwork through the image proxy to fix CORS
     // (most podcast/FMA CDNs don't send Access-Control-Allow-Origin).
-    if (kIsWeb) {
-      return Uri.parse('${ApiService.baseUrl}/api/proxy-image?url=${Uri.encodeComponent(thumbnailUrl)}');
+    if (kIsWeb && ApiService.hasServer) {
+      return Uri.parse(ApiService.proxyImageUrl(thumbnailUrl));
     }
     return Uri.tryParse(thumbnailUrl);
   }
@@ -233,9 +233,13 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
         return Uri.file(path);
       case TrackSource.youtube:
         // Mobile: extract direct googlevideo URL via InnerTube (no server).
-        // Web: route through the server proxy (YouTube API has no CORS).
+        // Web: route through the server proxy if configured (YouTube API has
+        // no CORS), otherwise playback is unavailable.
         if (kIsWeb) {
-          return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
+          if (ApiService.hasServer) {
+            return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
+          }
+          return null;
         }
         // Use prefetched URL if available, otherwise resolve fresh.
         final cached = track.audioUrl;
@@ -249,14 +253,29 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
         final purl = track.audioUrl;
         if (purl == null) return null;
         // Podcast hosts rarely send CORS headers, so on web go through the
-        // generic proxy; native can hit the URL directly.
-        return Uri.parse(kIsWeb ? ApiService.proxyDirectUrl(purl) : purl);
-      default:
-        // On web, route through the proxy too: it adds the CORS headers the
-        // browser requires, follows upstream redirects server-side, and serves
-        // progressive bytes with Range support. Native plays the direct
-        // upstream URL (no CORS limits) to save a hop.
+        // generic proxy (if a server is configured); native can hit the URL
+        // directly.
+        return Uri.parse(
+            kIsWeb && ApiService.hasServer ? ApiService.proxyDirectUrl(purl) : purl);
+      case TrackSource.soundcloud:
+        // Mobile: resolve a direct SoundCloud stream URL client-side.
+        // Web: route through the server proxy if configured.
         if (kIsWeb) {
+          if (ApiService.hasServer) {
+            return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
+          }
+          return null;
+        }
+        final scCached = track.audioUrl;
+        final scUrl = scCached ?? await ApiService.getStreamUrl(track.id, track.source);
+        if (scUrl != null) {
+          if (scCached == null) track.audioUrl = scUrl;
+          return Uri.parse(scUrl);
+        }
+        return null;
+      default:
+        // FMA / fake / etc.
+        if (kIsWeb && ApiService.hasServer) {
           return Uri.parse(ApiService.proxyAudioUrl(track.id, track.source));
         }
         final url = track.audioUrl ??= await ApiService.getStreamUrl(track.id, track.source);
@@ -285,7 +304,8 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
       return;
     }
 
-    // Non-YouTube (or YouTube on web): route through the server proxy.
+    // Non-YouTube (or YouTube on web): route through the server proxy if
+    // one is configured; otherwise resolve client-side.
     if (next.audioUrl != null) return;
     ApiService.getStreamUrl(next.id, next.source).then((url) {
       if (url != null) next.audioUrl = url;

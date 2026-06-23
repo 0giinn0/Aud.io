@@ -1,0 +1,110 @@
+name: Build & release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  actions: read
+
+# Only one deployment pipeline at a time.
+concurrency:
+  group: build-release
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Build the Android APK and publish it as a GitHub Release asset.
+  # The APK is always named `aud-io.apk` so the web app can link to
+  # /releases/latest/download/aud-io.apk and always get the newest build.
+  # ─────────────────────────────────────────────────────────────────────────
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.32.0'
+          cache: true
+
+      - name: Build APK
+        working-directory: aud.io
+        run: |
+          flutter pub get
+          flutter build apk --release --no-tree-shake-icons
+
+      - name: Rename APK to stable filename
+        run: |
+          mkdir -p artifact
+          cp aud.io/build/app/outputs/flutter-apk/app-release.apk artifact/aud-io.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aud-io-apk
+          path: artifact/aud-io.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach APK to latest release (on tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifact/aud-io.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Build the Flutter web app and deploy it (plus a static APK download
+  # landing page) to GitHub Pages. The APK is fetched at runtime from the
+  # GitHub Release via the in-app banner, so Pages only hosts the web shell.
+  # ─────────────────────────────────────────────────────────────────────────
+  build-web:
+    runs-on: ubuntu-latest
+    needs: build-apk
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.32.0'
+          cache: true
+
+      - name: Build Flutter web
+        working-directory: aud.io
+        run: |
+          flutter pub get
+          flutter build web --release --base-href "/Aud.io/"
+
+      - name: Add APK download landing page
+        run: |
+          mkdir -p aud.io/build/web/download
+          cp docs/apk-landing.html aud.io/build/web/download/index.html
+
+      - name: Add 404.html (SPA fallback)
+        run: cp aud.io/build/web/index.html aud.io/build/web/404.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: aud.io/build/web
+
+  deploy-pages:
+    runs-on: ubuntu-latest
+    needs: build-web
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

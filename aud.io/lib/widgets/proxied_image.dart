@@ -26,10 +26,14 @@ class ProxiedImage extends StatelessWidget {
 
   String? get _proxyUrl {
     if (url == null || url!.isEmpty) return null;
-    // On mobile (APK) use original URL — no CORS issues
+    // On mobile (APK) use original URL — no CORS issues.
     if (!kIsWeb) return url;
-    // On web, proxy through Render to get CORS headers + HTTPS upgrade
-    return '${ApiService.baseUrl}/api/proxy-image?url=${Uri.encodeQueryComponent(url!)}';
+    // On web, proxy through the configured server (if any) to get CORS
+    // headers + HTTPS upgrade. Without a server, fall back to the original.
+    if (ApiService.hasServer) {
+      return ApiService.proxyImageUrl(url!);
+    }
+    return url;
   }
 
   @override

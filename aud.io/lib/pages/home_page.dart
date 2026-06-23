@@ -1,11 +1,14 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:aud_io/core/theme/aud_io_theme.dart';
 import 'package:aud_io/core/theme/witty_strings.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/music_library.dart';
 import 'package:aud_io/services/audio_handler.dart';
 import 'package:aud_io/services/youtube_music_service.dart';
+import 'package:aud_io/services/soundcloud_service.dart';
 import 'package:aud_io/pages/now_playing_page.dart';
 import 'package:aud_io/widgets/track_context_sheet.dart';
 import 'package:aud_io/widgets/proxied_image.dart';
@@ -44,16 +47,27 @@ class _HomePageState extends State<HomePage> {
     setState(() => _isSearching = true);
     _focusNode.unfocus();
 
-    List<Track> results;
+    final q = query.trim();
+    // Fire YouTube + SoundCloud in parallel and merge results.
+    final results = <Track>[];
     try {
-      results = await YouTubeMusicService.searchAll(query.trim());
+      final ytFuture = YouTubeMusicService.searchAll(q);
+      final scFuture = SoundCloudService.search(q, limit: 12);
+      final yt = await ytFuture;
+      final sc = await scFuture;
+      // Interleave: alternate yt / sc so both sources show up at the top.
+      final maxLen = yt.length > sc.length ? yt.length : sc.length;
+      for (int i = 0; i < maxLen; i++) {
+        if (i < yt.length) results.add(yt[i]);
+        if (i < sc.length) results.add(sc[i]);
+      }
     } catch (_) {
-      results = [];
+      results.clear();
     }
     if (results.isEmpty && mounted) {
       try {
         final lib = context.read<MusicLibrary>();
-        results = await lib.searchAll(query.trim());
+        results.addAll(await lib.searchAll(q));
       } catch (_) {}
     }
 
@@ -89,6 +103,7 @@ class _HomePageState extends State<HomePage> {
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _buildHeader()),
+        if (kIsWeb) SliverToBoxAdapter(child: _buildApkBanner()),
         SliverToBoxAdapter(child: _buildSearchBar()),
         if (_isSearching)
           SliverToBoxAdapter(child: _buildLoading())
@@ -119,16 +134,103 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           const Spacer(),
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: AudIoTheme.surface,
-              borderRadius: BorderRadius.circular(12),
+          if (kIsWeb)
+            GestureDetector(
+              onTap: _openApkDownload,
+              child: Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: AudIoTheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.android_rounded, size: 20, color: AudIoTheme.onBg),
+              ),
+            )
+          else
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: AudIoTheme.surface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.notifications_none_rounded, size: 20, color: AudIoTheme.muted),
             ),
-            child: Icon(Icons.notifications_none_rounded, size: 20, color: AudIoTheme.muted),
-          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildApkBanner() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      child: GestureDetector(
+        onTap: _openApkDownload,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AudIoTheme.primary.withValues(alpha: 0.22),
+                AudIoTheme.surface,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AudIoTheme.primary.withValues(alpha: 0.3), width: 1),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                  color: AudIoTheme.primary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.android_rounded, size: 22, color: AudIoTheme.onBg),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Get the Android app', style: TextStyle(
+                      fontSize: 13, color: AudIoTheme.onSurface, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text('Download the APK — no store required', style: TextStyle(
+                      fontSize: 10, color: AudIoTheme.subtle)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: AudIoTheme.primary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.download_rounded, size: 14, color: AudIoTheme.onBg),
+                    const SizedBox(width: 4),
+                    Text('APK', style: TextStyle(
+                      fontSize: 10, color: AudIoTheme.onBg, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openApkDownload() {
+    // The GitHub Actions workflow publishes the APK with a stable filename,
+    // so /latest/download/aud-io.apk always resolves to the newest build.
+    launchUrl(
+      Uri.parse('https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io.apk'),
+      mode: LaunchMode.externalApplication,
     );
   }
 

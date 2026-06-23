@@ -2,20 +2,23 @@
 
 You know that thing where you want to listen to music but every app is either bloated, ugly, or wants your firstborn? Yeah, we fixed that.
 
-**aud.io** is a music player that respects your eyeballs. Built with Flutter, backed by a Node.js server deployed on Cloudflare Pages + Render. Searches YouTube Music, SoundCloud, and podcasts — without selling your soul.
+**aud.io** is a music player that respects your eyeballs. Built with Flutter. Searches YouTube Music, SoundCloud, and podcasts — without selling your soul. No backend, no Cloudflare, no Render. Just GitHub.
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.24+-02569B?logo=flutter)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.7+-0175C2?logo=dart)](https://dart.dev)
-[![Node](https://img.shields.io/badge/Node.js-20+-339933?logo=nodedotjs)](https://nodejs.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Build](https://github.com/0giinn0/Aud.io/actions/workflows/cloudflare-pages.yml/badge.svg)](https://github.com/0giinn0/Aud.io/actions)
+[![Build](https://github.com/0giinn0/Aud.io/actions/workflows/build-release.yml/badge.svg)](https://github.com/0giinn0/Aud.io/actions)
+[![Download APK](https://img.shields.io/badge/Download-APK-e23b3b?logo=android)](https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io.apk)
 
 ---
 
 ## Live
 
-- **Web**: https://aud-io-web.pages.dev
-- **Server**: https://aud-io.onrender.com
+- **Web app**: https://0giinn0.github.io/Aud.io
+- **APK download**: https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io.apk
+- **Landing page**: https://0giinn0.github.io/Aud.io/download/
+
+The web app has a built-in "Download APK" banner — tap it to grab the latest Android build.
 
 ---
 
@@ -46,14 +49,14 @@ You know that thing where you want to listen to music but every app is either bl
 
 ## What It Does
 
-- **Search everything** — YouTube Music via InnerTube, SoundCloud. Type a thing, get results.
+- **Search everything** — YouTube Music via InnerTube + SoundCloud, queried in parallel. Type a thing, get results from both.
 - **Podcasts** — Podcast Index API powering search, trending, and episode playback.
 - **Local files** — Scans your device for audio files. VLC-style. Finds your music so you don't have to dig through folders.
 - **Spotify import** — OAuth login, fetch your playlists, one tap to import.
 - **7 themes** — Ink & Red, Black & Grey, Black & Gold, Midnight Blue, Cream & Red, Pure White, Warm Sand.
 - **Golden spiral navigation** — 6 sections arranged using the golden ratio (φ ≈ 0.618). The active section fills the major rectangle; up to 3 inactive sections spiral inward showing Bauhaus-style numbered tiles. Tapping cycles through all sections.
 - **Bento box UI** — Mixed-size cards with gradients, rounded corners, Fibonacci spacing.
-- **Downloads** — yt-dlp powered MP3 downloads. Your music, your files.
+- **Downloads** — Direct MP3 downloads resolved client-side. Your music, your files.
 - **Playlists & favourites** — Stored locally with Hive. No cloud required.
 - **Transfer files** — Import from URL, export M3U/JSON, WiFi send to other devices.
 - **Account login** — Email/password, Google, Apple. Sync when you're ready.
@@ -66,11 +69,11 @@ You know that thing where you want to listen to music but every app is either bl
 |-------|------|-----|
 | Frontend | Flutter + Provider | Cross-platform, fast, beautiful |
 | Audio | just_audio + audio_service | Background playback, lock screen |
-| Server | Node.js / Express | CORS bypass, API proxy, yt-dlp |
-| YouTube | yt-dlp + InnerTube | Audio extraction that actually works |
-| Podcasts | Podcast Index API | Free, open, no BS |
+| YouTube | youtube_explode_dart + dart_ytmusic_api | InnerTube extraction, client-side |
+| SoundCloud | SoundCloud v2 API (client-side) | Scraped client_id, direct stream URLs |
+| Podcasts | Podcast Index API (client-side) | Free, open, no BS |
 | Persistence | Hive | Fast local storage, no internet needed |
-| Hosting | Cloudflare Pages + Render | Free tier is generous |
+| Hosting | GitHub Pages + GitHub Releases | Free, everything in one place |
 
 ---
 
@@ -79,54 +82,70 @@ You know that thing where you want to listen to music but every app is either bl
 ### What You Need
 
 - Flutter 3.24+
-- Node.js 20+
 
-### Step 1: Start the server
-
-```bash
-cd aud.io/server
-npm install
-cp .env.example .env   # fill in your API keys
-npm run dev
-```
-
-Server runs on `http://localhost:3000`.
-
-### Step 2: Run Flutter
+### Run the app
 
 ```bash
 cd aud.io
 flutter pub get
-flutter run -d chrome
+flutter run -d chrome      # web
+flutter run -d <device>    # Android / iOS / desktop
 ```
 
-### Environment Variables
+### Optional: enable Podcast Index trending & details
 
-| Variable | What It Does |
-|----------|-------------|
-| `PODCAST_INDEX_API_KEY` | Podcast Index API key |
-| `PODCAST_INDEX_API_SECRET` | Podcast Index API secret |
-| `SOUNDCLOUD_CLIENT_ID` | SoundCloud API client ID |
-| `SPOTIFY_CLIENT_ID` | Spotify app client ID |
-| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret |
-| `SPOTIFY_REDIRECT_URI` | OAuth redirect URL |
+Get a free API key at https://podcastindex.org/ and pass it at build time:
+
+```bash
+flutter run --dart-define=PODCAST_INDEX_API_KEY=your_key \
+            --dart-define=PODCAST_INDEX_API_SECRET=your_secret
+```
+
+### Optional: hardcode a SoundCloud client_id
+
+SoundCloud's client_id is scraped from soundcloud.com at runtime (works on residential/mobile IPs). To pin one:
+
+```bash
+flutter run --dart-define=SOUNDCLOUD_CLIENT_ID=your_client_id
+```
+
+### Optional: Spotify import
+
+Spotify OAuth requires a token-exchange endpoint. If you run your own backend (any server that forwards to `accounts.spotify.com/api/token`), point the app at it:
+
+```bash
+flutter run --dart-define=BASE_URL=https://your-optional-server.example.com
+```
+
+Without `BASE_URL`, every other feature still works — only Spotify import is disabled.
 
 ---
 
-## Deployment
+## Building the APK
 
-### Server → Render
+```bash
+cd aud.io
+flutter build apk --release
+```
 
-1. Push to GitHub — Render picks up `render.yaml` automatically
-2. Add env vars in the Render dashboard
-3. Done.
+The output is at `build/app/outputs/flutter-apk/app-release.apk`. Push to `main` and GitHub Actions builds + publishes it automatically.
 
-### Web → Cloudflare Pages
+---
 
-1. Push to `main`
-2. GitHub Actions builds Flutter web
-3. Deploys to Cloudflare Pages automatically
-4. Add `CLOUDFLARE_API_TOKEN` as a repo secret
+## Deployment (all on GitHub)
+
+A single workflow (`.github/workflows/build-release.yml`) does everything:
+
+1. **Builds the APK** → uploads it as a GitHub Release asset named `aud-io.apk` (on tags) and as a workflow artifact (on every push to `main`).
+2. **Builds the Flutter web app** → deploys to **GitHub Pages** at `https://0giinn0.github.io/Aud.io`.
+3. **Publishes a download landing page** at `https://0giinn0.github.io/Aud.io/download/`.
+
+To release a new version: tag a commit `v1.2.3` and push the tag — the APK gets attached to a Release automatically.
+
+### One-time GitHub setup
+
+1. **Settings → Pages → Build and deployment → Source: GitHub Actions** (the workflow handles the rest).
+2. No secrets required for the build itself. (Set `BASE_URL` / Podcast Index keys as repo-level `--dart-define` only if you fork and want them baked in.)
 
 ---
 
