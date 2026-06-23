@@ -48,16 +48,33 @@ You know that thing where you want to listen to music but every app is either bl
 
 ## Screens
 
+### Web
+
 <table>
 <tr>
-<td align="center"><img src="docs/screenshots/01-discover.png" width="200"/><br/><sub>Discover — golden spiral nav + search</sub></td>
-<td align="center"><img src="docs/screenshots/02-podcasts.png" width="200"/><br/><sub>Podcasts — categories + trending</sub></td>
-<td align="center"><img src="docs/screenshots/03-library.png" width="200"/><br/><sub>Library — playlists, Spotify import, transfer</sub></td>
+<td align="center"><img src="docs/screenshots/web/01-discover.png" width="200"/><br/><sub>Discover</sub></td>
+<td align="center"><img src="docs/screenshots/web/02-podcasts.png" width="200"/><br/><sub>Podcasts</sub></td>
+<td align="center"><img src="docs/screenshots/web/03-library.png" width="200"/><br/><sub>Library</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/screenshots/04-settings.png" width="200"/><br/><sub>Settings — 7 theme presets, one-tap swap</sub></td>
-<td align="center"><img src="docs/screenshots/05-local.png" width="200"/><br/><sub>Local Files — scan device, pick folder or files</sub></td>
-<td align="center"><img src="docs/screenshots/06-account.png" width="200"/><br/><sub>Account — sign in, Google, Apple, sync</sub></td>
+<td align="center"><img src="docs/screenshots/web/04-settings.png" width="200"/><br/><sub>Settings</sub></td>
+<td align="center"><img src="docs/screenshots/web/05-local.png" width="200"/><br/><sub>Local Files</sub></td>
+<td align="center"><img src="docs/screenshots/web/06-account.png" width="200"/><br/><sub>Account</sub></td>
+</tr>
+</table>
+
+### Mobile
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/mobile/01-discover.png" width="200"/><br/><sub>Discover</sub></td>
+<td align="center"><img src="docs/screenshots/mobile/02-podcasts.png" width="200"/><br/><sub>Podcasts</sub></td>
+<td align="center"><img src="docs/screenshots/mobile/03-library.png" width="200"/><br/><sub>Library</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/mobile/04-settings.png" width="200"/><br/><sub>Settings</sub></td>
+<td align="center"><img src="docs/screenshots/mobile/05-local.png" width="200"/><br/><sub>Local Files</sub></td>
+<td align="center"><img src="docs/screenshots/mobile/06-account.png" width="200"/><br/><sub>Account</sub></td>
 </tr>
 </table>
 

@@ -132,15 +132,89 @@ class _PodcastPageState extends State<PodcastPage> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: AudIoTheme.bg,
-      body: Column(
-        children: [
-          _buildHeader(),
-          _buildSearchBar(),
-          _buildGenreChips(),
-          if (_selectedPodcast != null) _buildPodcastDetail(),
-          if (_selectedPodcast == null) Expanded(child: _buildContent()),
-        ],
-      ),
+      body: _selectedPodcast != null
+          ? _buildPodcastDetail()
+          : CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: _buildHeader()),
+                SliverToBoxAdapter(child: _buildSearchBar()),
+                SliverToBoxAdapter(child: _buildGenreChips()),
+                // Loading state
+                if (_isSearching)
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 120,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                            color: AudIoTheme.primary),
+                      ),
+                    ),
+                  ),
+                // Search results
+                if (!_isSearching && _searchResults.isNotEmpty) ...[
+                  SliverToBoxAdapter(child: _buildSearchResultsHeader()),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index >= _searchResults.length) return null;
+                          return _buildPodcastCard(_searchResults[index]);
+                        },
+                        childCount: _searchResults.length,
+                      ),
+                    ),
+                  ),
+                ],
+                // Trending
+                if (!_isSearching && _searchResults.isEmpty) ...[
+                  if (_trendingPodcasts.isNotEmpty) ...[
+                    SliverToBoxAdapter(child: _buildTrendingHeader()),
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            if (index >= _trendingPodcasts.length) return null;
+                            return _buildPodcastCard(
+                                _trendingPodcasts[index]);
+                          },
+                          childCount: _trendingPodcasts.length,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (_isLoadingTrending)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                              color: AudIoTheme.primary),
+                        ),
+                      ),
+                    ),
+                  if (!_isLoadingTrending && _trendingPodcasts.isEmpty)
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: 120,
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.podcasts_rounded,
+                                  size: 48, color: AudIoTheme.subtle),
+                              SizedBox(height: 12),
+                              Text('Search for podcasts'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+                SliverToBoxAdapter(child: SizedBox(height: 80)),
+              ],
+            ),
     );
   }
 
@@ -313,81 +387,23 @@ class _PodcastPageState extends State<PodcastPage> {
     );
   }
 
-  Widget _buildContent() {
-    if (_isSearching) {
-      return Center(child: CircularProgressIndicator(color: AudIoTheme.primary));
-    }
-
-    if (_searchResults.isNotEmpty) {
-      return _buildSearchResults();
-    }
-
-    return _buildTrendingPodcasts();
-  }
-
-  Widget _buildSearchResults() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Row(
-            children: [
-              Text('${_searchResults.length} results', style: TextStyle(
-                fontSize: 11, color: AudIoTheme.muted)),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: _searchResults.length,
-            itemBuilder: (context, index) {
-              final podcast = _searchResults[index];
-              return _buildPodcastCard(podcast);
-            },
-          ),
-        ),
-      ],
+  Widget _buildSearchResultsHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        children: [
+          Text('${_searchResults.length} results', style: TextStyle(
+            fontSize: 11, color: AudIoTheme.muted)),
+        ],
+      ),
     );
   }
 
-  Widget _buildTrendingPodcasts() {
-    if (_isLoadingTrending) {
-      return Center(child: CircularProgressIndicator(color: AudIoTheme.primary));
-    }
-
-    if (_trendingPodcasts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.podcasts_rounded, size: 48, color: AudIoTheme.subtle),
-            const SizedBox(height: 12),
-            Text('Search for podcasts', style: TextStyle(
-              color: AudIoTheme.muted, fontSize: 12)),
-            const SizedBox(height: 8),
-            Text('Powered by Podcast Index', style: TextStyle(
-              color: AudIoTheme.subtle, fontSize: 9)),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      itemCount: _trendingPodcasts.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text('TRENDING NOW', style: TextStyle(
-              fontSize: 10, color: AudIoTheme.primary, fontWeight: FontWeight.w600, letterSpacing: 2)),
-          );
-        }
-
-        final podcast = _trendingPodcasts[index - 1];
-        return _buildPodcastCard(podcast);
-      },
+  Widget _buildTrendingHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: Text('TRENDING NOW', style: TextStyle(
+        fontSize: 10, color: AudIoTheme.primary, fontWeight: FontWeight.w600, letterSpacing: 2)),
     );
   }
 
@@ -441,68 +457,75 @@ class _PodcastPageState extends State<PodcastPage> {
 
   Widget _buildPodcastDetail() {
     final podcast = _selectedPodcast!;
-    return Expanded(
-      child: Column(
-        children: [
-          // Podcast header
-          Container(
-            margin: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AudIoTheme.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    width: 80,
-                    height: 80,
-                    child: podcast.thumbnailUrl != null && podcast.thumbnailUrl!.isNotEmpty
-                    ? ProxiedImage(url: podcast.thumbnailUrl!, width: 80, height: 80,
-                        errorBuilder: (_, _, _) => Container(color: AudIoTheme.surfaceVariant,
-                          child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 32)))
-                        : Container(color: AudIoTheme.surfaceVariant,
-                            child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 32)),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(podcast.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: AudIoTheme.onSurface, fontSize: 14, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      Text(podcast.authorDisplay,
-                        style: TextStyle(color: AudIoTheme.muted, fontSize: 11)),
-                      const SizedBox(height: 4),
-                      Text('${podcast.episodeCount} episodes', style: TextStyle(
-                        color: AudIoTheme.subtle, fontSize: 10)),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.arrow_back_rounded, color: AudIoTheme.muted),
-                  onPressed: () => setState(() => _selectedPodcast = null),
-                ),
-              ],
-            ),
+    return Column(
+      children: [
+        // Podcast header
+        Container(
+          margin: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AudIoTheme.surface,
+            borderRadius: BorderRadius.circular(16),
           ),
-          // Episodes list
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: podcast.episodes.length,
-              itemBuilder: (context, index) {
-                final episode = podcast.episodes[index];
-                return _buildEpisodeCard(episode);
-              },
-            ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: podcast.thumbnailUrl != null && podcast.thumbnailUrl!.isNotEmpty
+                  ? ProxiedImage(url: podcast.thumbnailUrl!, width: 80, height: 80,
+                      errorBuilder: (_, _, _) => Container(color: AudIoTheme.surfaceVariant,
+                        child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 32)))
+                      : Container(color: AudIoTheme.surfaceVariant,
+                          child: Icon(Icons.podcasts_rounded, color: AudIoTheme.subtle, size: 32)),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(podcast.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: AudIoTheme.onSurface, fontSize: 14, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(podcast.authorDisplay,
+                      style: TextStyle(color: AudIoTheme.muted, fontSize: 11)),
+                    const SizedBox(height: 4),
+                    Text('${podcast.episodeCount} episodes', style: TextStyle(
+                      color: AudIoTheme.subtle, fontSize: 10)),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: AudIoTheme.muted),
+                onPressed: () => setState(() => _selectedPodcast = null),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        // Episodes list
+        SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text('EPISODES', style: TextStyle(
+              fontSize: 10, color: AudIoTheme.primary, fontWeight: FontWeight.w600, letterSpacing: 2)),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: podcast.episodes.length,
+            itemBuilder: (context, index) {
+              final episode = podcast.episodes[index];
+              return _buildEpisodeCard(episode);
+            },
+          ),
+        ),
+      ],
     );
   }
 
