@@ -1,2 +1,4 @@
 # Temp / dev
 screenshots-tmp/
+.claude/
+*.iml
