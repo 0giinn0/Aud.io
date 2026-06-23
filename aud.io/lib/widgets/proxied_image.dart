@@ -33,8 +33,10 @@ class ProxiedImage extends StatelessWidget {
     if (ApiService.hasServer) {
       return ApiService.proxyImageUrl(url!);
     }
-    // Otherwise use the public CORS proxy.
-    return CorsProxy.wrap(url!);
+    // Use the image-specific proxy (images.weserv.nl) — handles CORS,
+    // redirects, HTTPS upgrades, and doesn't 403 on images like
+    // corsproxy.io does.
+    return CorsProxy.wrapImage(url!);
   }
 
   @override

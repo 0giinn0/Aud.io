@@ -162,10 +162,12 @@ class PodcastService {
   }
 
   /// Parse an RSS feed for episodes (no auth required).
+  /// Uses getLarge on web — RSS feeds can be big and need proxies that
+  /// handle large responses (allorigins /get wraps in JSON with CORS).
   static Future<List<PodcastEpisode>> episodesFromFeed(
       String feedUrl, int max) async {
     try {
-      final resp = await CorsProxy.get(feedUrl,
+      final resp = await CorsProxy.getLarge(feedUrl,
           headers: {'User-Agent': _userAgent}).timeout(_timeout);
       if (resp.statusCode != 200) return [];
       return _parseRss(resp.body, max);

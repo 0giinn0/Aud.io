@@ -128,7 +128,7 @@ class AppAudioHandler extends BaseAudioHandler with ChangeNotifier {
       if (ApiService.hasServer) {
         return Uri.parse(ApiService.proxyImageUrl(thumbnailUrl));
       }
-      return Uri.parse(CorsProxy.wrap(thumbnailUrl));
+      return Uri.parse(CorsProxy.wrapImage(thumbnailUrl));
     }
     return Uri.tryParse(thumbnailUrl);
   }
