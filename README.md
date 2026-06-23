@@ -9,16 +9,27 @@ You know that thing where you want to listen to music but every app is either bl
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Build](https://github.com/0giinn0/Aud.io/actions/workflows/build-release.yml/badge.svg)](https://github.com/0giinn0/Aud.io/actions)
 [![Download APK](https://img.shields.io/badge/Download-APK-e23b3b?logo=android)](https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io.apk)
+[![Release](https://img.shields.io/github/v/release/0giinn0/Aud.io?display_name=tag&include_prereleases)](https://github.com/0giinn0/Aud.io/releases)
 
 ---
 
-## Live
+## Download
 
-- **Web app**: https://0giinn0.github.io/Aud.io
-- **APK download**: https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io.apk
-- **Landing page**: https://0giinn0.github.io/Aud.io/download/
+| Platform | Link |
+|----------|------|
+| **Android APK** | [releases/latest/download/aud-io.apk](https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io.apk) |
+| **Web app** | [0giinn0.github.io/Aud.io](https://0giinn0.github.io/Aud.io) |
+| **APK landing page** | [0giinn0.github.io/Aud.io/download/](https://0giinn0.github.io/Aud.io/download/) |
+| **All releases** | [github.com/0giinn0/Aud.io/releases](https://github.com/0giinn0/Aud.io/releases) |
 
-The web app has a built-in "Download APK" banner — tap it to grab the latest Android build.
+### Install the APK
+
+1. Tap the download link above on your Android phone — the APK is named `aud-io.apk`.
+2. If prompted, allow your browser to **install unknown apps** (Settings → Apps → your browser → Install unknown apps → Allow).
+3. Open the downloaded file and tap **Install**.
+4. Done. No account, no store, no BS.
+
+The web app also has a built-in "Download APK" banner — tap it to grab the latest build.
 
 ---
 
