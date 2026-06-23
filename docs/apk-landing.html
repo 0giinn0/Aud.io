@@ -65,19 +65,32 @@
 <body>
   <main class="card">
     <div class="logo">a.</div>
-    <h1>aud.io for Android</h1>
-    <p>Stream YouTube Music, SoundCloud &amp; podcasts — no ads, no trackers, no subscription. Download the APK and install it on your phone.</p>
+    <h1>aud.io for mobile</h1>
+    <p>Stream YouTube Music, SoundCloud &amp; podcasts — no ads, no trackers, no subscription. Download the Android APK or the iOS app and install it on your phone.</p>
 
     <a class="btn" id="apkLink" href="https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io.apk" rel="noopener">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3v12m0 0l-4-4m4 4l4-4"/>
         <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
       </svg>
-      Download APK
+      Download Android APK
     </a>
 
+    <div style="margin-top:12px">
+      <a class="btn" id="iosLink" href="https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io-ios.zip" rel="noopener" style="background:#c9a24b">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 17V5m0 0l-6 6m6-6l6 6"/>
+        </svg>
+        Download iOS (.app)
+      </a>
+    </div>
+
     <div class="note">
-      New to sideloading? On Android, allow <strong>"Install unknown apps"</strong> for your browser in Settings → Apps, then open the downloaded file.
+      <strong>Android:</strong> Allow "Install unknown apps" for your browser in Settings → Apps, then open the downloaded file.
+    </div>
+
+    <div class="note">
+      <strong>iOS:</strong> The .app bundle is unsigned. Sideload it via <a href="https://sideloadly.io/" style="color:var(--gold)">Sideloadly</a> or <a href="https://altstore.io/" style="color:var(--gold)">AltStore</a> with your Apple ID. A signed App Store build requires an Apple Developer account.
     </div>
 
     <div class="meta">
@@ -86,13 +99,14 @@
   </main>
 
   <script>
-    // The web app links directly to the APK, but if someone lands here we
-    // keep the button pointed at the latest release asset.
+    // Keep the download buttons pointed at the latest release assets.
     fetch('https://api.github.com/repos/0giinn0/Aud.io/releases/latest')
       .then(r => r.json())
       .then(rel => {
         const apk = (rel.assets || []).find(a => /aud-io\.apk$/i.test(a.name));
+        const ios = (rel.assets || []).find(a => /aud-io-ios\.zip$/i.test(a.name));
         if (apk) document.getElementById('apkLink').href = apk.browser_download_url;
+        if (ios) document.getElementById('iosLink').href = ios.browser_download_url;
       })
       .catch(() => {});
   </script>

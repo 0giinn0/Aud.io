@@ -15,21 +15,31 @@ You know that thing where you want to listen to music but every app is either bl
 
 ## Download
 
-| Platform | Link |
-|----------|------|
-| **Android APK** | [releases/latest/download/aud-io.apk](https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io.apk) |
-| **Web app** | [0giinn0.github.io/Aud.io](https://0giinn0.github.io/Aud.io) |
-| **APK landing page** | [0giinn0.github.io/Aud.io/download/](https://0giinn0.github.io/Aud.io/download/) |
-| **All releases** | [github.com/0giinn0/Aud.io/releases](https://github.com/0giinn0/Aud.io/releases) |
+| Platform | Link | Install |
+|----------|------|---------|
+| **Android APK** | [releases/latest/download/aud-io.apk](https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io.apk) | Allow "Install unknown apps" for your browser → open the file |
+| **iOS (.app)** | [releases/latest/download/aud-io-ios.zip](https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io-ios.zip) | Sideload via [Sideloadly](https://sideloadly.io/) or [AltStore](https://altstore.io/) with your Apple ID |
+| **Web app** | [0giinn0.github.io/Aud.io](https://0giinn0.github.io/Aud.io) | Just open the link |
+| **Landing page** | [0giinn0.github.io/Aud.io/download/](https://0giinn0.github.io/Aud.io/download/) | Download buttons for both platforms |
+| **All releases** | [github.com/0giinn0/Aud.io/releases](https://github.com/0giinn0/Aud.io/releases) | — |
 
-### Install the APK
+### Install the APK (Android)
 
 1. Tap the download link above on your Android phone — the APK is named `aud-io.apk`.
 2. If prompted, allow your browser to **install unknown apps** (Settings → Apps → your browser → Install unknown apps → Allow).
 3. Open the downloaded file and tap **Install**.
 4. Done. No account, no store, no BS.
 
-The web app also has a built-in "Download APK" banner — tap it to grab the latest build.
+### Install the iOS app
+
+1. Download `aud-io-ios.zip` and unzip it — you'll get `Runner.app`.
+2. Install [Sideloadly](https://sideloadly.io/) (Windows/Mac) or [AltStore](https://altstore.io/) (Mac/Windows).
+3. Sign in with your Apple ID in the sideloading tool.
+4. Drag `Runner.app` into the tool and install it on your iPhone.
+5. Trust the developer profile on your phone (Settings → General → VPN & Device Management → your Apple ID).
+6. The app needs to be re-signed every 7 days with a free Apple ID (AltStore handles this automatically).
+
+> **Note:** A signed App Store build requires a paid Apple Developer account ($99/year). The unsigned build works for personal use via sideloading.
 
 ---
 

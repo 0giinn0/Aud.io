@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Aud Io</string>
+	<string>aud.io</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -26,6 +26,23 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Allow background audio playback (audio_service / just_audio) -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<!-- App Transport Security: allow arbitrary loads because many podcast
+	     feeds and audio CDNs use plain HTTP. Without this, iOS blocks the
+	     connections silently. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsArbitraryLoadsForMedia</key>
+		<true/>
+	</dict>
+	<!-- Microphone / recording not required, but document file access is
+	     used by the local-files scanner via file_picker. -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
