@@ -9,7 +9,10 @@ You know that thing where you want to listen to music but every app is either bl
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Build](https://github.com/0giinn0/Aud.io/actions/workflows/build-release.yml/badge.svg)](https://github.com/0giinn0/Aud.io/actions)
 [![Download APK](https://img.shields.io/badge/Download-APK-e23b3b?logo=android)](https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io.apk)
+[![Download iOS](https://img.shields.io/badge/Download-iOS-c9a24b?logo=apple)](https://github.com/0giinn0/Aud.io/releases/latest/download/aud-io-ios.zip)
 [![Release](https://img.shields.io/github/v/release/0giinn0/Aud.io?display_name=tag&include_prereleases)](https://github.com/0giinn0/Aud.io/releases)
+
+> **Download the app:** [0giinn0.github.io/Aud.io/download](https://0giinn0.github.io/Aud.io/download/) — Android APK & iOS app, plus install instructions.
 
 ---
 
