@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/cors_proxy.dart';
 
@@ -9,12 +8,11 @@ import 'package:aud_io/services/cors_proxy.dart';
 /// Ports the logic that previously lived in the Node.js server so the APK
 /// can search and play SoundCloud without any backend. The client_id is
 /// scraped from soundcloud.com (residential IPs work, which is what mobile
-/// devices use) with an optional hardcoded fallback via env var
-/// `SOUNDCLOUD_CLIENT_ID`.
+/// devices use) with hardcoded fallbacks for web (where proxies may fail).
 class SoundCloudService {
   SoundCloudService._();
 
-  static const Duration _timeout = Duration(seconds: 10);
+  static const Duration _timeout = Duration(seconds: 12);
   static String? _cachedClientId;
   static DateTime? _clientIdFetchedAt;
   static const Duration _clientIdTtl = Duration(hours: 1);
@@ -28,13 +26,21 @@ class SoundCloudService {
           ? null
           : const String.fromEnvironment('SOUNDCLOUD_CLIENT_ID');
 
+  // Known public SoundCloud client_ids used by the SoundCloud web app.
+  // These rotate periodically but having them as fallback means the web
+  // app can still search even when scraping fails through CORS proxies.
+  static const _fallbackClientIds = [
+    'iZIs9mchLcE5dlOhHxyr6zS6gIu04WBm',
+    'a3c56ed8e6b2c99b25958a86e602bd23',
+    'J3ungbohLH8n7ojbidcRTNG77E2Fb69Y',
+  ];
+
   static Future<bool> _isValidClientId(String id) async {
     try {
-      final resp = await http.get(
-        Uri.parse(CorsProxy.wrap(
-            'https://api-v2.soundcloud.com/search/tracks?q=test&client_id=$id&limit=1')),
+      final resp = await CorsProxy.get(
+        'https://api-v2.soundcloud.com/search/tracks?q=test&client_id=$id&limit=1',
         headers: {'User-Agent': _userAgent},
-      ).timeout(const Duration(seconds: 6));
+      ).timeout(const Duration(seconds: 8));
       return resp.statusCode == 200;
     } catch (_) {
       return false;
@@ -57,12 +63,20 @@ class SoundCloudService {
       return envId;
     }
 
-    // 2. Scrape the public web client from soundcloud.com.
+    // 2. Try hardcoded fallback client_ids (fast, no scraping needed).
+    for (final id in _fallbackClientIds) {
+      if (await _isValidClientId(id)) {
+        _cachedClientId = id;
+        _clientIdFetchedAt = DateTime.now();
+        debugPrint('aud.io: SoundCloud client_id from fallback list');
+        return id;
+      }
+    }
+
+    // 3. Scrape the public web client from soundcloud.com.
     try {
-      final resp = await http
-          .get(Uri.parse(CorsProxy.wrap('https://soundcloud.com')),
-              headers: {'User-Agent': _userAgent})
-          .timeout(_timeout);
+      final resp = await CorsProxy.get('https://soundcloud.com',
+          headers: {'User-Agent': _userAgent}).timeout(_timeout);
       final html = resp.body;
 
       // Inline client_id references.
@@ -85,10 +99,8 @@ class SoundCloudService {
           .reversed;
       for (final url in scriptUrls) {
         try {
-          final jsResp = await http
-              .get(Uri.parse(CorsProxy.wrap(url)),
-                  headers: {'User-Agent': _userAgent})
-              .timeout(const Duration(seconds: 6));
+          final jsResp = await CorsProxy.get(url,
+              headers: {'User-Agent': _userAgent}).timeout(const Duration(seconds: 6));
           final m = RegExp(r'client_id:"([^"]+)"').firstMatch(jsResp.body);
           if (m != null && await _isValidClientId(m[1]!)) {
             _cachedClientId = m[1]!;
@@ -115,13 +127,9 @@ class SoundCloudService {
       return [];
     }
     try {
-      final resp = await http.get(
-        Uri.parse(CorsProxy.wrap(
-            'https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeQueryComponent(query)}&client_id=$clientId&limit=$limit&offset=0')),
-        headers: {
-          'User-Agent': _userAgent,
-          'Accept': 'application/json',
-        },
+      final resp = await CorsProxy.get(
+        'https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeQueryComponent(query)}&client_id=$clientId&limit=$limit&offset=0',
+        headers: {'User-Agent': _userAgent, 'Accept': 'application/json'},
       ).timeout(_timeout);
       if (resp.statusCode != 200) {
         if (resp.statusCode == 401) {
@@ -159,9 +167,8 @@ class SoundCloudService {
     if (clientId == null) return null;
     final scId = trackId.replaceFirst('sc_', '');
     try {
-      final trackResp = await http.get(
-        Uri.parse(CorsProxy.wrap(
-            'https://api-v2.soundcloud.com/tracks/$scId?client_id=$clientId')),
+      final trackResp = await CorsProxy.get(
+        'https://api-v2.soundcloud.com/tracks/$scId?client_id=$clientId',
         headers: {'User-Agent': _userAgent, 'Accept': 'application/json'},
       ).timeout(_timeout);
       if (trackResp.statusCode == 401) {
@@ -197,8 +204,8 @@ class SoundCloudService {
       final url = chosen['url'] as String?;
       if (url == null) return null;
 
-      final resolveResp = await http.get(
-        Uri.parse(CorsProxy.wrap('$url?client_id=$clientId')),
+      final resolveResp = await CorsProxy.get(
+        '$url?client_id=$clientId',
         headers: {'User-Agent': _userAgent, 'Accept': 'application/json'},
       ).timeout(_timeout);
       if (resolveResp.statusCode != 200) return null;

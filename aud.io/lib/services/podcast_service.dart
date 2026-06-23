@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:aud_io/core/models/podcast.dart';
 import 'package:aud_io/services/cors_proxy.dart';
 
@@ -49,9 +48,8 @@ class PodcastService {
   static Future<List<Podcast>> search(String query, {int max = 10}) async {
     if (query.isEmpty) return [];
     try {
-      final resp = await http.get(
-        Uri.parse(CorsProxy.wrap(
-            '$_freeSearchBase?term=${Uri.encodeQueryComponent(query)}&entity=podcast')),
+      final resp = await CorsProxy.get(
+        '$_freeSearchBase?term=${Uri.encodeQueryComponent(query)}&entity=podcast',
         headers: {'User-Agent': _userAgent},
       ).timeout(_timeout);
       if (resp.statusCode != 200) return [];
@@ -83,9 +81,8 @@ class PodcastService {
       return [];
     }
     try {
-      final resp = await http.get(
-        Uri.parse(CorsProxy.wrap(
-            '$_authBase/podcasts/trending?max=$max&lang=$lang')),
+      final resp = await CorsProxy.get(
+        '$_authBase/podcasts/trending?max=$max&lang=$lang',
         headers: headers,
       ).timeout(_timeout);
       if (resp.statusCode != 200) return [];
@@ -114,8 +111,8 @@ class PodcastService {
     final headers = _authHeaders();
     if (headers == null) return null;
     try {
-      final podResp = await http.get(
-        Uri.parse(CorsProxy.wrap('$_authBase/podcasts/byfeedid?id=$feedId')),
+      final podResp = await CorsProxy.get(
+        '$_authBase/podcasts/byfeedid?id=$feedId',
         headers: headers,
       ).timeout(_timeout);
       if (podResp.statusCode != 200) return null;
@@ -123,9 +120,8 @@ class PodcastService {
       final feed = podData['feed'] as Map<String, dynamic>?;
       if (feed == null) return null;
 
-      final epResp = await http.get(
-        Uri.parse(CorsProxy.wrap(
-            '$_authBase/episodes/byfeedid?id=$feedId&max=$maxEpisodes')),
+      final epResp = await CorsProxy.get(
+        '$_authBase/episodes/byfeedid?id=$feedId&max=$maxEpisodes',
         headers: headers,
       ).timeout(_timeout);
       List<PodcastEpisode> episodes = [];
@@ -169,10 +165,8 @@ class PodcastService {
   static Future<List<PodcastEpisode>> episodesFromFeed(
       String feedUrl, int max) async {
     try {
-      final resp = await http
-          .get(Uri.parse(CorsProxy.wrap(feedUrl)),
-              headers: {'User-Agent': _userAgent})
-          .timeout(_timeout);
+      final resp = await CorsProxy.get(feedUrl,
+          headers: {'User-Agent': _userAgent}).timeout(_timeout);
       if (resp.statusCode != 200) return [];
       return _parseRss(resp.body, max);
     } catch (e) {

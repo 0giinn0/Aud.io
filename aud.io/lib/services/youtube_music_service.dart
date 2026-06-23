@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:dart_ytmusic_api/yt_music.dart';
 import 'package:aud_io/core/models/track.dart';
 import 'package:aud_io/services/api_service.dart';
+import 'package:aud_io/services/cors_proxy.dart';
 
 class YouTubeMusicService {
   YouTubeMusicService._();
@@ -130,12 +131,11 @@ class YouTubeMusicService {
   }
 
   /// Search YouTube Music on web by POSTing to the InnerTube API through
-  /// a public CORS proxy. The proxy bypasses the browser's CORS
-  /// restrictions so the web app can search YouTube without a backend.
+  /// public CORS proxies. Tries multiple proxies until one succeeds.
   static Future<List<Track>> _corsProxySearch(String query, int limit) async {
     try {
       const innerTubeKey = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
-      const innerTubeUrl =
+      final innerTubeUrl =
           'https://music.youtube.com/youtubei/v1/search?alt=json&key=$innerTubeKey';
 
       final context = {
@@ -151,20 +151,16 @@ class YouTubeMusicService {
         'params': 'EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D',
       };
 
-      // Use corsproxy.io which supports POST with custom headers.
-      final proxyUrl = 'https://corsproxy.io/?url=${Uri.encodeComponent(innerTubeUrl)}';
-      final resp = await http
-          .post(
-            Uri.parse(proxyUrl),
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Origin': 'https://music.youtube.com',
-              'Referer': 'https://music.youtube.com/',
-            },
-            body: jsonEncode(context),
-          )
-          .timeout(const Duration(seconds: 15));
+      final resp = await CorsProxy.post(
+        innerTubeUrl,
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Origin': 'https://music.youtube.com',
+          'Referer': 'https://music.youtube.com/',
+        },
+        body: jsonEncode(context),
+      );
 
       if (resp.statusCode != 200) {
         debugPrint('aud.io: YTMusic CORS proxy search HTTP ${resp.statusCode}');

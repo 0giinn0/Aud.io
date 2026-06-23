@@ -20,10 +20,9 @@ class GoldenSection {
 
 /// Golden-ratio spiral navigation, after narrowdesign.com:
 /// the active section fills the major golden rectangle (~61.8% of the
-/// screen) and up to 3 inactive sections occupy successively smaller golden
-/// rectangles spiraling into the corner. When there are more than 4 sections
-/// the visible set slides: tapping the smallest panel cycles to the next
-/// hidden section, so all sections stay within 1–3 taps.
+/// screen) and the remaining sections occupy successively smaller golden
+/// rectangles spiraling into the corner. All 6 sections are visible at
+/// once — each level decreases by the golden ratio.
 ///
 /// Page state is preserved: every page stays mounted (Offstage while its
 /// section is inactive).
@@ -31,9 +30,6 @@ class GoldenSpiralNav extends StatelessWidget {
   final List<GoldenSection> sections;
   final int activeIndex;
   final ValueChanged<int> onChanged;
-
-  // Maximum panels shown in the spiral at once (1 active + N-1 inactive).
-  static const int _maxVisible = 4;
 
   const GoldenSpiralNav({
     super.key,
@@ -43,13 +39,15 @@ class GoldenSpiralNav extends StatelessWidget {
   });
 
   /// Returns the indices of sections shown in the spiral, in spiral order
-  /// (active first, then the next [_maxVisible-1] sections circularly).
+  /// (active first, then the next sections circularly). All sections are
+  /// visible — the spiral just keeps getting smaller.
   List<int> _visibleIndices() {
-    final count = sections.length.clamp(0, _maxVisible);
+    final count = sections.length;
     return List<int>.generate(count, (i) => (activeIndex + i) % sections.length);
   }
 
-  /// Splits [bounds] into one rect per visible section.
+  /// Splits [bounds] into one rect per visible section, spiraling inward
+  /// by the golden ratio. Alternates horizontal/vertical cuts.
   List<Rect> _spiralRects(Rect bounds, int visibleCount) {
     final rects = List<Rect>.filled(visibleCount, Rect.zero);
     var remaining = bounds;
@@ -77,7 +75,6 @@ class GoldenSpiralNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visible = _visibleIndices();
-    final hasOverflow = sections.length > _maxVisible;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -135,8 +132,6 @@ class GoldenSpiralNav extends StatelessWidget {
                     child: _PanelPreview(
                       section: sections[visible[v]],
                       index: visible[v],
-                      // Show overflow indicator on last visible panel when sections overflow
-                      showOverflowDot: hasOverflow && v == visible.length - 1,
                     ),
                   ),
                 ),
@@ -150,15 +145,14 @@ class GoldenSpiralNav extends StatelessWidget {
 
 /// Bauhaus preview tile: giant index numeral, small uppercase label, and a
 /// circle motif — scaled to whatever golden rectangle it lands in.
+/// Three size tiers: full, compact (<90px), ultra (<50px).
 class _PanelPreview extends StatelessWidget {
   final GoldenSection section;
   final int index;
-  final bool showOverflowDot;
 
   const _PanelPreview({
     required this.section,
     required this.index,
-    this.showOverflowDot = false,
   });
 
   @override
@@ -167,8 +161,44 @@ class _PanelPreview extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, c) {
-        final compact = c.maxWidth < 90 || c.maxHeight < 90;
         final shortest = c.maxWidth < c.maxHeight ? c.maxWidth : c.maxHeight;
+        final compact = c.maxWidth < 90 || c.maxHeight < 90;
+        final ultra = c.maxWidth < 50 || c.maxHeight < 50;
+
+        // Ultra-compact: just the numeral centered, no label/icon.
+        if (ultra) {
+          return Stack(
+            children: [
+              // Circle motif
+              Positioned(
+                right: -shortest * 0.15,
+                bottom: -shortest * 0.15,
+                child: Container(
+                  width: shortest * 0.6,
+                  height: shortest * 0.6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: fg.withValues(alpha: 0.12),
+                  ),
+                ),
+              ),
+              Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      height: 0.9,
+                      color: fg,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
 
         return Stack(
           children: [
@@ -227,20 +257,6 @@ class _PanelPreview extends StatelessWidget {
                 ],
               ),
             ),
-            // Overflow indicator: small dot when more sections are hidden
-            if (showOverflowDot)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: fg.withValues(alpha: 0.7),
-                  ),
-                ),
-              ),
           ],
         );
       },

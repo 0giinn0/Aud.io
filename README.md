@@ -69,6 +69,8 @@ You know that thing where you want to listen to music but every app is either bl
   <img src="docs/architecture.svg" width="680"/>
 </p>
 
+**No backend.** The Flutter app talks to YouTube Music, SoundCloud, and Podcast Index directly from the device. On native (APK/iOS) all API calls go straight to the source. On web, requests route through free public CORS proxies (corsproxy.io, codetabs, allorigins, thingproxy) with multi-proxy fallback. GitHub Pages hosts the web build; GitHub Releases hosts the APK and iOS app. That's it.
+
 ---
 
 ## What It Does
@@ -78,8 +80,8 @@ You know that thing where you want to listen to music but every app is either bl
 - **Local files** — Scans your device for audio files. VLC-style. Finds your music so you don't have to dig through folders.
 - **Spotify import** — OAuth login, fetch your playlists, one tap to import.
 - **7 themes** — Ink & Red, Black & Grey, Black & Gold, Midnight Blue, Cream & Red, Pure White, Warm Sand.
-- **Golden spiral navigation** — 6 sections arranged using the golden ratio (φ ≈ 0.618). The active section fills the major rectangle; up to 3 inactive sections spiral inward showing Bauhaus-style numbered tiles. Tapping cycles through all sections.
-- **Bento box UI** — Mixed-size cards with gradients, rounded corners, Fibonacci spacing.
+- **Golden spiral navigation** — All 6 sections visible at once, arranged using the golden ratio (φ ≈ 0.618). The active section fills the major rectangle; 5 inactive sections spiral inward, each decreasing in size. Bauhaus-style numbered tiles. Tapping any panel activates it.
+- **Bento box UI** — Asymmetric mixed-size cards with gradients, rounded corners. Every box is a different size — no uniform grids.
 - **Downloads** — Direct MP3 downloads resolved client-side. Your music, your files.
 - **Playlists & favourites** — Stored locally with Hive. No cloud required.
 - **Transfer files** — Import from URL, export M3U/JSON, WiFi send to other devices.

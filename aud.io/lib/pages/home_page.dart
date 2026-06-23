@@ -431,21 +431,29 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row 1: Now Playing (large) + Quick Play (small)
+          // Row 1: Now Playing (hero, 4/6 width, 200px) + Quick Play (2/6, 200px)
           Row(
             children: [
-              Expanded(flex: 3, child: _buildNowPlayingCard()),
+              Expanded(flex: 4, child: _buildNowPlayingCard()),
               const SizedBox(width: 12),
               Expanded(flex: 2, child: _buildQuickPlayCard()),
             ],
           ),
           const SizedBox(height: 12),
 
-          // Row 2: Genre chips
-          _buildGenreGrid(),
+          // Row 2: Genres — 3 tiles, asymmetric (3:2:1)
+          _buildGenreRow(0, 3, flexA: 3, flexB: 2, flexC: 1, heightA: 140, heightB: 140, heightC: 140),
           const SizedBox(height: 12),
 
-          // Row 3: Recently Played (wide) + Favorites (small)
+          // Row 3: Genres — 3 tiles, asymmetric (2:1:3) — different ratio than row 2
+          _buildGenreRow(3, 3, flexA: 2, flexB: 1, flexC: 3, heightA: 100, heightB: 100, heightC: 100),
+          const SizedBox(height: 12),
+
+          // Row 4: Genres — 2 tiles, asymmetric (1:2)
+          _buildGenreRow(6, 2, flexA: 1, flexB: 2, heightA: 80, heightB: 80),
+          const SizedBox(height: 12),
+
+          // Row 5: Trending (3/5, 130px) + Favorites (2/5, 130px)
           Row(
             children: [
               Expanded(flex: 3, child: _buildRecentlyPlayedCard()),
@@ -455,7 +463,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 12),
 
-          // Row 4: Podcasts + Stats
+          // Row 6: Podcasts (2/4) + Playlists (1/4) + Downloads (1/4), all 100px
           Row(
             children: [
               Expanded(flex: 2, child: _buildPodcastsCard()),
@@ -467,11 +475,35 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 12),
 
-          // Row 5: Explore CTA
+          // Row 7: Explore CTA (slim banner)
           _buildExploreCard(),
         ],
       ),
     );
+  }
+
+  /// Build a row of 2 or 3 genre tiles with independent flex + height.
+  Widget _buildGenreRow(int startIndex, int count, {
+    required int flexA, required double heightA,
+    int flexB = 0, double heightB = 0,
+    int flexC = 0, double heightC = 0,
+  }) {
+    final tiles = <Widget>[];
+    final flexes = [flexA, flexB, flexC];
+    final heights = [heightA, heightB, heightC];
+
+    for (var i = 0; i < count; i++) {
+      if (i > 0) tiles.add(const SizedBox(width: 12));
+      final idx = startIndex + i;
+      if (idx >= _genres.length) break;
+      tiles.add(
+        Expanded(
+          flex: flexes[i],
+          child: _buildGenreTile(_genres[idx], height: heights[i], isBig: flexes[i] >= 3),
+        ),
+      );
+    }
+    return Row(children: tiles);
   }
 
   Widget _buildNowPlayingCard() {
@@ -481,7 +513,7 @@ class _HomePageState extends State<HomePage> {
         return GestureDetector(
           onTap: track != null ? _openNowPlaying : null,
           child: Container(
-            height: 180,
+            height: 200,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -548,7 +580,7 @@ class _HomePageState extends State<HomePage> {
     return GestureDetector(
       onTap: widget.onNavigateToLibrary,
       child: Container(
-        height: 180,
+        height: 200,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AudIoTheme.surface,
@@ -572,40 +604,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildGenreGrid() {
-    // Golden ratio bento grid: pairs of big (61.8%) + small (38.2%) tiles
-    return Column(
-      children: List.generate((_genres.length / 2).ceil(), (rowIndex) {
-        final firstIdx = rowIndex * 2;
-        final secondIdx = firstIdx + 1;
-        final firstGenre = _genres[firstIdx];
-        final secondGenre = secondIdx < _genres.length ? _genres[secondIdx] : null;
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Row(
-            children: [
-              // Big tile (61.8% of space)
-              Expanded(
-                flex: 618,
-                child: _buildGenreTile(firstGenre, isBig: true),
-              ),
-              const SizedBox(width: 12),
-              // Small tile (38.2% of space) - or spacer if no second genre
-              Expanded(
-                flex: 382,
-                child: secondGenre != null
-                    ? _buildGenreTile(secondGenre, isBig: false)
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildGenreTile(Map<String, dynamic> genre, {required bool isBig}) {
+  Widget _buildGenreTile(Map<String, dynamic> genre, {required double height, required bool isBig}) {
     final color = genre['color'] as Color;
     final icon = genre['icon'] as IconData;
     final name = genre['name'] as String;
@@ -616,7 +615,7 @@ class _HomePageState extends State<HomePage> {
         _search(name);
       },
       child: Container(
-        height: isBig ? 120 : 96,
+        height: height,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
